@@ -1,87 +1,189 @@
 import React, { useState } from 'react';
 import TicketForm from './TicketForm';
 import AdminDashboard from './AdminDashboard';
-
-// Define our staff access groups clearly
-const STAFF_EMAILS = ['staff1@company.com', 'staff2@company.com', 'staff3@company.com'];
+import StaffDashboard from './StaffDashboard';
 
 export default function App() {
   const [user, setUser] = useState(null);
-  const [emailInput, setEmailInput] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [role, setRole] = useState('customer');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
-  const handleLogin = (e) => {
+  const handleAuthSubmit = async (e) => {
     e.preventDefault();
-    if (!emailInput.trim()) return;
+    setErrorMsg('');
+    setSuccessMsg('');
 
-    // Force lowercase and strip any accidental trailing spaces
-    const cleanedEmail = emailInput.trim().toLowerCase();
-    let role = 'customer'; 
+    const payload = isSignUp ? { email, password, role } : { email, password };
+    const endpoint = isSignUp ? 'signup' : 'login';
 
-    // Explicit structural match checks
-    if (cleanedEmail === 'nafyadtilahun4@gmail.com' || cleanedEmail === 'admin@company.com') {
-      role = 'admin';
-    } else if (STAFF_EMAILS.includes(cleanedEmail)) {
-      role = 'staff';
+    try {
+      const response = await fetch(`http://localhost:5000/api/auth/${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Authentication routing fault.');
+      }
+
+      if (isSignUp) {
+        setSuccessMsg('🎉 Account provisioned successfully! Proceeding to Sign In.');
+        setIsSignUp(false); // Clean bounce back to login layout
+        setEmail('');
+        setPassword('');
+        setRole('customer'); // Reset state selection back to default
+      } else {
+        setUser({
+          email: data.user.email,
+          role: data.user.role
+        });
+      }
+    } catch (err) {
+      setErrorMsg(err.message);
     }
-    
-    setUser({
-      email: cleanedEmail,
-      role: role
-    });
   };
 
   const handleLogout = () => {
     setUser(null);
-    setEmailInput('');
+    setEmail('');
+    setPassword('');
+    setErrorMsg('');
+    setSuccessMsg('');
   };
 
-  // 1. Unauthenticated Gate Layout View
+  // ==========================================================================
+  // ETHIOPIAN STATISTICAL SERVICE GLASSMORPHIC INTERFACE
+  // ==========================================================================
   if (!user) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-        <form onSubmit={handleLogin} className="bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-xl w-full max-w-md backdrop-blur-md">
-          <h2 className="text-2xl font-black text-center tracking-tight text-slate-100 mb-2">Service Gate Portal</h2>
-          <p className="text-xs text-slate-400 text-center mb-6">Enter your email to establish a secure workspace session</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-zinc-950 flex items-center justify-center p-4 relative overflow-hidden">
+        {/* Ambient branding light flares in background */}
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div className="w-full max-w-md bg-slate-900/60 border border-slate-800/80 rounded-2xl p-8 backdrop-blur-xl shadow-2xl relative z-10">
           
-          <div className="mb-4">
-            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Network Email Address</label>
-            <input
-              type="email"
-              required
-              value={emailInput}
-              onChange={(e) => setEmailInput(e.target.value)}
-              placeholder="name@example.com"
-              className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-lg p-3 text-slate-100 placeholder-slate-600 outline-none transition-all text-sm"
-            />
+          {/* Header Branding Panel */}
+          <div className="text-center mb-8">
+            <h1 className="text-xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-slate-100 via-slate-200 to-slate-400">
+              {isSignUp ? 'SYSTEM REGISTRATION' : 'ETHIOPIAN STATISTICAL SERVICE'}
+            </h1>
+            <p className="text-[10px] font-bold tracking-[0.2em] text-blue-500 uppercase mt-1">
+              {isSignUp ? 'Internal Employee Onboarding' : 'IT Service Desk Portal'}
+            </p>
+            <div className="w-12 h-[2px] bg-gradient-to-r from-blue-500 to-indigo-500 mx-auto mt-4 rounded-full"></div>
           </div>
-          <button type="submit" className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold rounded-lg text-sm tracking-wide shadow-lg transition-all">
-            Establish Session Access
-          </button>
-        </form>
+
+          {errorMsg && (
+            <div className="p-3 rounded-xl mb-5 text-xs font-medium bg-red-500/10 border border-red-500/20 text-red-400 backdrop-blur-md">
+              ⚠️ {errorMsg}
+            </div>
+          )}
+          {successMsg && (
+            <div className="p-3 rounded-xl mb-5 text-xs font-medium bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 backdrop-blur-md">
+              {successMsg}
+            </div>
+          )}
+
+          <form onSubmit={handleAuthSubmit} className="space-y-5">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                Network Email Address
+              </label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@statsethiopia.gov.et"
+                className="w-full bg-slate-950/80 border border-slate-800 focus:border-blue-500/80 focus:ring-1 focus:ring-blue-500/30 rounded-xl p-3 text-slate-200 placeholder-slate-700 outline-none transition-all text-sm shadow-inner"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                Security Access Token
+              </label>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full bg-slate-950/80 border border-slate-800 focus:border-blue-500/80 focus:ring-1 focus:ring-blue-500/30 rounded-xl p-3 text-slate-200 placeholder-slate-700 outline-none transition-all text-sm shadow-inner"
+              />
+            </div>
+
+            {isSignUp && (
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                  System Assignment Workgroup
+                </label>
+                <select
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500/80 rounded-xl p-3 text-slate-300 outline-none transition-all text-sm cursor-pointer"
+                >
+                  <option value="customer">ESS Employee (End User)</option>
+                  {/* Matches the 'it_staff' database check constraint perfectly */}
+                  <option value="it_staff">IT Support Specialist (Staff)</option>
+                  <option value="admin">System Operations Controller (Admin)</option>
+                </select>
+              </div>
+            )}
+
+            <button 
+              type="submit" 
+              className="w-full py-3.5 mt-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs uppercase tracking-widest shadow-lg shadow-blue-950/50 hover:shadow-blue-900/20 active:scale-[0.99] transition-all"
+            >
+              {isSignUp ? 'Register Account' : 'Establish Secure Connection'}
+            </button>
+          </form>
+
+          {/* Toggle Gateway Link Panel */}
+          <div className="mt-8 pt-4 border-t border-slate-800/60 text-center">
+            {isSignUp ? (
+              <button
+                type="button"
+                onClick={() => { setIsSignUp(false); setErrorMsg(''); setSuccessMsg(''); }}
+                className="text-xs text-slate-500 hover:text-blue-400 transition-colors tracking-wide"
+              >
+                Already have an account? <span className="text-blue-500 font-semibold underline underline-offset-4 ml-1">Sign In</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => { setIsSignUp(true); setErrorMsg(''); setSuccessMsg(''); }}
+                className="text-xs text-slate-500 hover:text-blue-400 transition-colors tracking-wide"
+              >
+                Don't have an account? <span className="text-blue-500 font-semibold underline underline-offset-4 ml-1">Register Here</span>
+              </button>
+            )}
+          </div>
+
+        </div>
       </div>
     );
   }
 
-  /* ==========================================================================
-     ROLE ROUTING WORKSPACE MATRIX
-     ========================================================================== */
-
+  // ==========================================================================
+  // ROUTING DISPATCH MATRIX
+  // ==========================================================================
   if (user.role === 'admin') {
     return <AdminDashboard onLogout={handleLogout} />;
   }
   
-  if (user.role === 'staff') {
-    return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center">
-        <h1 className="text-2xl font-bold text-purple-400">IT Staff Workspace Connected</h1>
-        <p className="text-slate-400 text-sm mt-2">Active Session: {user.email}</p>
-        <button onClick={handleLogout} className="mt-4 px-4 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm hover:text-red-400 transition-colors">
-          Log Out
-        </button>
-      </div>
-    );
+  // Triggers smoothly upon successful lookup match against database constraint string 'it_staff'
+  if (user.role === 'it_staff') {
+    return <StaffDashboard userEmail={user.email} onLogout={handleLogout} />;
   }
 
-  // Default Fallback: Standard Customer View
   return <TicketForm userEmail={user.email} onLogout={handleLogout} />;
 }

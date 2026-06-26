@@ -71,7 +71,7 @@ export default function TicketForm({ userEmail, onLogout }) {
               Active User: {userEmail}
             </span>
             <button onClick={onLogout} className="text-xs font-medium text-slate-400 hover:text-red-400 transition-colors">
-              Sign Out
+              Logout
             </button>
           </div>
           

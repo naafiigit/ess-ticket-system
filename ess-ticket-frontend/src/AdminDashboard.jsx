@@ -11,14 +11,63 @@ export default function AdminDashboard({ onLogout }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('All');
 
+  // 👤 NEW IT SUPPORT SPECIALIST CREATION STATES
+  const [newStaffEmail, setNewStaffEmail] = useState('');
+  const [newStaffPassword, setNewStaffPassword] = useState('');
+  const [createSuccess, setCreateSuccess] = useState('');
+  const [createError, setCreateError] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  const handleCreateStaff = async (e) => {
+    e.preventDefault();
+    setCreateSuccess('');
+    setCreateError('');
+    setCreating(true);
+
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: newStaffEmail,
+          password: newStaffPassword,
+          role: 'it_staff'
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create IT Support account.');
+      }
+
+      setCreateSuccess('🎉 Support account created successfully!');
+      setNewStaffEmail('');
+      setNewStaffPassword('');
+      fetchDashboardData();
+    } catch (err) {
+      setCreateError(err.message);
+    } finally {
+      setCreating(false);
+    }
+  };
+
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    const delayDebounceFn = setTimeout(() => {
+      fetchDashboardData();
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm, priorityFilter]);
 
   const fetchDashboardData = async () => {
     try {
+      const params = new URLSearchParams();
+      if (searchTerm) params.append('search', searchTerm);
+      if (priorityFilter && priorityFilter !== 'All') params.append('priority', priorityFilter);
+
       const [ticketsRes, staffRes] = await Promise.all([
-        fetch('http://localhost:5000/api/admin/tickets'),
+        fetch(`http://localhost:5000/api/admin/tickets?${params.toString()}`),
         fetch('http://localhost:5000/api/admin/staff-list')
       ]);
 
@@ -96,20 +145,7 @@ export default function AdminDashboard({ onLogout }) {
       #10b981 ${degBreached}deg 360deg
     )`
   };
-  // --- Instant Client-Side Query Filtering Engine ---
-  const filteredTickets = tickets.filter((ticket) => {
-    // 1. Check match against Title, Description, Assigned Email, or Ticket ID
-    const matchesSearch = 
-      ticket.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ticket.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ticket.assigned_to?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      String(ticket.id).includes(searchTerm);
 
-    // 2. Check match against Priority selection dropdown
-    const matchesPriority = priorityFilter === 'All' || ticket.priority === priorityFilter;
-
-    return matchesSearch && matchesPriority;
-  });
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-6 relative overflow-hidden">
@@ -125,7 +161,7 @@ export default function AdminDashboard({ onLogout }) {
           </p>
         </div>
         <button onClick={onLogout} className="px-4 py-2 bg-slate-900/80 hover:bg-slate-800 border border-slate-800/60 text-slate-300 hover:text-red-400 font-bold rounded-xl text-[11px] tracking-widest uppercase transition-all shadow-md active:scale-95">
-          Secure Logout
+          Logout
         </button>
       </header>
 
@@ -189,42 +225,106 @@ export default function AdminDashboard({ onLogout }) {
 
             </div>
 
-            {/* SLA PERFORMANCE PIE/DONUT CHART MATRIX */}
-            <div className="bg-slate-900/20 border border-slate-800/60 rounded-2xl p-6 backdrop-blur-xl flex flex-col md:flex-row items-center justify-around gap-8">
-              <div className="space-y-3 max-w-sm">
-                <h3 className="text-sm font-black uppercase tracking-wider text-slate-300">SLA Performance Summary</h3>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  Real-time distributional overview of open infrastructure incidents, queue holdbacks, active target deadlocks, and fulfilled workloads.
-                </p>
-                
-                {/* Chart Color Legends */}
-                <div className="grid grid-cols-2 gap-3 pt-2">
-                  <div className="flex items-center gap-2 text-[11px] text-slate-400 font-medium">
-                    <span className="w-2.5 h-2.5 rounded bg-blue-500"></span> Open ({stats.open})
+            {/* SLA PERFORMANCE & STAFF PROVISIONING GRID */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              {/* SLA Performance summary - occupies 2 columns */}
+              <div className="lg:col-span-2 bg-slate-900/20 border border-slate-800/60 rounded-2xl p-6 backdrop-blur-xl flex flex-col md:flex-row items-center justify-around gap-8">
+                <div className="space-y-3 max-w-sm">
+                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-300">SLA Performance Summary</h3>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Real-time overview of open infrastructure incidents, queue holdbacks, active target deadlocks, and resolved workloads.
+                  </p>
+                  
+                  {/* Chart Color Legends */}
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div className="flex items-center gap-2 text-[11px] text-slate-400 font-medium">
+                      <span className="w-2.5 h-2.5 rounded bg-blue-500"></span> Open ({stats.open})
+                    </div>
+                    <div className="flex items-center gap-2 text-[11px] text-slate-400 font-medium">
+                      <span className="w-2.5 h-2.5 rounded bg-amber-500"></span> On Hold ({stats.onHold})
+                    </div>
+                    <div className="flex items-center gap-2 text-[11px] text-slate-400 font-medium">
+                      <span className="w-2.5 h-2.5 rounded bg-red-500"></span> Breached ({stats.breached})
+                    </div>
+                    <div className="flex items-center gap-2 text-[11px] text-slate-400 font-medium">
+                      <span className="w-2.5 h-2.5 rounded bg-emerald-500"></span> Resolved ({stats.resolved})
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 text-[11px] text-slate-400 font-medium">
-                    <span className="w-2.5 h-2.5 rounded bg-amber-500"></span> On Hold ({stats.onHold})
-                  </div>
-                  <div className="flex items-center gap-2 text-[11px] text-slate-400 font-medium">
-                    <span className="w-2.5 h-2.5 rounded bg-red-500"></span> Breached ({stats.breached})
-                  </div>
-                  <div className="flex items-center gap-2 text-[11px] text-slate-400 font-medium">
-                    <span className="w-2.5 h-2.5 rounded bg-emerald-500"></span> Resolved ({stats.resolved})
+                </div>
+
+                {/* Native Donut Graphic Render Frame */}
+                <div className="relative flex items-center justify-center">
+                  <div 
+                    className="w-40 h-40 rounded-full shadow-2xl transition-all duration-500" 
+                    style={pieChartStyle}
+                  ></div>
+                  <div className="absolute w-[110px] h-[110px] bg-slate-950 rounded-full flex flex-col items-center justify-center border border-slate-900 shadow-inner">
+                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Total</span>
+                    <span className="text-xl font-black text-slate-200 mt-0.5">{stats.total}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Native Donut Graphic Render Frame */}
-              <div className="relative flex items-center justify-center">
-                <div 
-                  className="w-40 h-40 rounded-full shadow-2xl transition-all duration-500" 
-                  style={pieChartStyle}
-                ></div>
-                <div className="absolute w-[110px] h-[110px] bg-slate-950 rounded-full flex flex-col items-center justify-center border border-slate-900 shadow-inner">
-                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Total</span>
-                  <span className="text-xl font-black text-slate-200 mt-0.5">{stats.total}</span>
+              {/* Create IT Support Specialist Panel */}
+              <div className="bg-slate-900/20 border border-slate-800/60 rounded-2xl p-6 backdrop-blur-xl flex flex-col justify-between">
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-300 mb-1">Add Support Specialist</h3>
+                  <p className="text-[10px] font-bold text-blue-500 tracking-[0.1em] uppercase mb-4">
+                    IT Support Specialist Provisioning
+                  </p>
+
+                  {createError && (
+                    <div className="p-2.5 rounded-lg mb-3 text-[10px] font-medium bg-red-500/10 border border-red-500/20 text-red-400">
+                      ⚠️ {createError}
+                    </div>
+                  )}
+                  {createSuccess && (
+                    <div className="p-2.5 rounded-lg mb-3 text-[10px] font-medium bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                      {createSuccess}
+                    </div>
+                  )}
+
+                  <form onSubmit={handleCreateStaff} className="space-y-3">
+                    <div>
+                      <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                        Email Address
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        value={newStaffEmail}
+                        onChange={(e) => setNewStaffEmail(e.target.value)}
+                        placeholder="specialist@statsethiopia.gov.et"
+                        className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500/50 rounded-lg p-2 text-xs text-slate-200 placeholder-slate-700 outline-none transition-all shadow-inner"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                        Password
+                      </label>
+                      <input
+                        type="password"
+                        required
+                        value={newStaffPassword}
+                        onChange={(e) => setNewStaffPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500/50 rounded-lg p-2 text-xs text-slate-200 placeholder-slate-700 outline-none transition-all shadow-inner"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={creating}
+                      className="w-full py-2.5 mt-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 text-white font-bold rounded-lg text-[10px] uppercase tracking-wider shadow-md transition-all active:scale-[0.98]"
+                    >
+                      {creating ? 'Provisioning...' : 'Create Account'}
+                    </button>
+                  </form>
                 </div>
               </div>
+
             </div>
             {/* 🔍 SEARCH & FILTER BAR COMPONENT */}
             <div className="bg-slate-900/20 border border-slate-800/60 rounded-2xl p-4 backdrop-blur-xl flex flex-col sm:flex-row items-center gap-4 justify-between">
@@ -284,8 +384,7 @@ export default function AdminDashboard({ onLogout }) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/50">
-                    {/* 🔥 SWAPPED FROM tickets.map TO filteredTickets.map */}
-                    {filteredTickets.map((ticket) => (
+                    {tickets.map((ticket) => (
                       <tr key={ticket.id} className="hover:bg-slate-900/20 transition-colors">
                         <td className="p-4 text-slate-600 font-mono text-center">#{ticket.id}</td>
                         
@@ -374,7 +473,7 @@ export default function AdminDashboard({ onLogout }) {
 </td>
                       </tr>
                     ))}
-                    {filteredTickets.length === 0 && (
+                    {tickets.length === 0 && (
                       <tr>
                         <td colSpan="6" className="p-8 text-center text-slate-600 font-medium tracking-wide uppercase text-[10px]">
                           No records matched your operational matrix queries.

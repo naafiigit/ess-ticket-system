@@ -17,7 +17,7 @@ export default function App() {
     setErrorMsg('');
     setSuccessMsg('');
 
-    const payload = isSignUp ? { email, password, role } : { email, password };
+    const payload = isSignUp ? { email, password, role: 'customer' } : { email, password };
     const endpoint = isSignUp ? 'signup' : 'login';
 
     try {
@@ -71,14 +71,18 @@ export default function App() {
         <div className="w-full max-w-md bg-slate-900/60 border border-slate-800/80 rounded-2xl p-8 backdrop-blur-xl shadow-2xl relative z-10">
           
           {/* Header Branding Panel */}
-          <div className="text-center mb-8">
-            <h1 className="text-xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-slate-100 via-slate-200 to-slate-400">
-              {isSignUp ? 'SYSTEM REGISTRATION' : 'ETHIOPIAN STATISTICAL SERVICE'}
-            </h1>
-            <p className="text-[10px] font-bold tracking-[0.2em] text-blue-500 uppercase mt-1">
-              {isSignUp ? 'Internal Employee Onboarding' : 'IT Service Desk Portal'}
+          <div className="text-center mb-6">
+            <img 
+              src="/image.png" 
+              alt="Ethiopian Statistical Service Logo" 
+              className="w-full h-auto rounded-xl border border-slate-800/80 shadow-lg mb-4" 
+            />
+            <h2 className="text-sm font-bold tracking-widest text-slate-300 uppercase">
+              {isSignUp ? 'System Registration' : 'IT Service Desk Portal'}
+            </h2>
+            <p className="text-[9px] font-bold tracking-[0.15em] text-blue-500 uppercase mt-1">
+              {isSignUp ? 'Internal Employee Onboarding' : 'Secure Authorization'}
             </p>
-            <div className="w-12 h-[2px] bg-gradient-to-r from-blue-500 to-indigo-500 mx-auto mt-4 rounded-full"></div>
           </div>
 
           {errorMsg && (
@@ -95,7 +99,7 @@ export default function App() {
           <form onSubmit={handleAuthSubmit} className="space-y-5">
             <div>
               <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                Network Email Address
+                Email Address
               </label>
               <input
                 type="email"
@@ -109,7 +113,7 @@ export default function App() {
 
             <div>
               <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                Security Access Token
+                Password
               </label>
               <input
                 type="password"
@@ -121,29 +125,11 @@ export default function App() {
               />
             </div>
 
-            {isSignUp && (
-              <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                  System Assignment Workgroup
-                </label>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500/80 rounded-xl p-3 text-slate-300 outline-none transition-all text-sm cursor-pointer"
-                >
-                  <option value="customer">ESS Employee (End User)</option>
-                  {/* Matches the 'it_staff' database check constraint perfectly */}
-                  <option value="it_staff">IT Support Specialist (Staff)</option>
-                  <option value="admin">System Operations Controller (Admin)</option>
-                </select>
-              </div>
-            )}
-
             <button 
               type="submit" 
               className="w-full py-3.5 mt-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs uppercase tracking-widest shadow-lg shadow-blue-950/50 hover:shadow-blue-900/20 active:scale-[0.99] transition-all"
             >
-              {isSignUp ? 'Register Account' : 'Establish Secure Connection'}
+              {isSignUp ? 'Register Account' : 'Login'}
             </button>
           </form>
 

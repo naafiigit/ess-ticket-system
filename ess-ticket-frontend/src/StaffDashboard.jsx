@@ -103,7 +103,7 @@ export default function StaffDashboard({ userEmail, onLogout }) {
           </p>
         </div>
         <button onClick={onLogout} className="px-4 py-2 bg-slate-900/80 hover:bg-slate-800 border border-slate-800/60 text-slate-300 hover:text-red-400 font-bold rounded-xl text-[11px] tracking-widest uppercase transition-all shadow-md">
-          Secure Logout
+          Logout
         </button>
       </header>
 

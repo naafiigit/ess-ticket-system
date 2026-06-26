@@ -1,11 +1,62 @@
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const express = require('express');
 const nodemailer = require('nodemailer');
 const cors = require('cors');
 const { Pool } = require('pg');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+
+// Disable console.log activities in production mode
+if (process.env.NODE_ENV === 'production') {
+  console.log = () => {};
+}
 
 const app = express();
+
+// Secure HTTP headers
+app.use(helmet());
+
 app.use(cors());
 app.use(express.json());
+
+// --- RATE LIMITERS ---
+
+// 1. General API Rate Limiter
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per 15 minutes
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests from this IP, please try again later.' }
+});
+app.use('/api/', generalLimiter);
+
+// 2. Login Rate Limiter (Brute-Force Prevention)
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 failed attempts per 15 minutes
+  skipSuccessfulRequests: true, // Only count failed login attempts (status >= 400)
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Please try again after 15 minutes.' }
+});
+app.use('/api/auth/login', loginLimiter);
+
+// 3. Ticket Submission Rate Limiter (Spam Prevention)
+const ticketSubmissionLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 10, // Limit each IP to 10 submissions per hour
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Ticket submission rate limit exceeded. Please try again in an hour.' }
+});
+app.use('/api/tickets', (req, res, next) => {
+  if (req.method === 'POST') {
+    return ticketSubmissionLimiter(req, res, next);
+  }
+  next();
+});
 
 // Database connection instance configuration
 const pool = new Pool({
@@ -46,6 +97,28 @@ const initDb = async () => {
       ALTER TABLE tickets ADD COLUMN IF NOT EXISTS custom_sla_status VARCHAR(50) DEFAULT 'In Progress';
     `);
 
+    // 3. Seed admin user from environment variables if not exists
+    const adminEmail = (process.env.ADMIN_EMAIL || 'admin@statsethiopia.gov.et').trim().toLowerCase();
+    const adminPassword = process.env.ADMIN_PASSWORD || 'adminpassword123';
+    
+    const adminCheck = await pool.query("SELECT * FROM users WHERE email = $1", [adminEmail]);
+    if (adminCheck.rows.length === 0) {
+      const defaultName = adminEmail.split('@')[0];
+      await pool.query(
+        `INSERT INTO users (email, password, role, name) 
+         VALUES ($1, $2, 'admin', $3)`,
+        [adminEmail, adminPassword, defaultName]
+      );
+      console.log(`👤 Admin user seeded: ${adminEmail}`);
+    } else {
+      // Keep admin credentials in sync if they changed in the env configuration
+      await pool.query(
+        `UPDATE users SET password = $1 WHERE email = $2 AND role = 'admin'`,
+        [adminPassword, adminEmail]
+      );
+      console.log(`👤 Admin user verified.`);
+    }
+
     console.log('✅ Database initialized and SLA columns verified successfully.');
   } catch (err) {
     console.error('❌ Database initialization failed:', err.message);
@@ -64,14 +137,25 @@ app.post('/api/auth/signup', async (req, res) => {
     const assignedRole = role || 'customer';
     const defaultName = cleanEmail.split('@')[0];
 
+    // Generate unique random 8-digit user ID
+    let userId;
+    let isUnique = false;
+    while (!isUnique) {
+      userId = Math.floor(10000000 + Math.random() * 90000000);
+      const check = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+      if (check.rows.length === 0) {
+        isUnique = true;
+      }
+    }
+
     const result = await pool.query(
-      `INSERT INTO users (email, password, role, name) 
-       VALUES ($1, $2, $3, $4) 
+      `INSERT INTO users (id, email, password, role, name) 
+       VALUES ($1, $2, $3, $4, $5) 
        RETURNING id, email, role, name`,
-      [cleanEmail, password, assignedRole, defaultName]
+      [userId, cleanEmail, password, assignedRole, defaultName]
     );
     
-    console.log(`👤 New user registered successfully: ${cleanEmail} as ${assignedRole}`);
+    console.log(`👤 New user registered successfully: ${cleanEmail} as ${assignedRole} (ID: ${userId})`);
     res.status(201).json({ message: 'User registered successfully!', user: result.rows[0] });
   } catch (err) {
     console.error('Signup Error:', err.message);
@@ -133,19 +217,31 @@ app.get('/api/tickets', async (req, res) => {
   }
 });
 
-// 4. CUSTOMER ROUTE: Insert new ticket records with exact database-level timezone calculations
+// 4. CUSTOMER ROUTE: Insert new ticket records with exact database-level timezone calculations and unique random IDs
 app.post('/api/tickets', async (req, res) => {
   const { title, description, priority, category, created_by } = req.body;
   
   // Determine SLA hour window based on priority selection
-  let hoursToDeadline = 24; // Default Medium
+  let hoursToDeadline = 12; // Default Medium
   if (priority === 'High') hoursToDeadline = 4;
-  if (priority === 'Low') hoursToDeadline = 72;
+  if (priority === 'Low') hoursToDeadline = 24;
 
   try {
+    // Generate unique random 8-digit ticket ID
+    let ticketId;
+    let isUnique = false;
+    while (!isUnique) {
+      ticketId = Math.floor(10000000 + Math.random() * 90000000);
+      const check = await pool.query('SELECT id FROM tickets WHERE id = $1', [ticketId]);
+      if (check.rows.length === 0) {
+        isUnique = true;
+      }
+    }
+
     // Insert the ticket along with its dynamically calculated timestamp
     const result = await pool.query(
       `INSERT INTO tickets (
+        id,
         title, 
         description, 
         priority, 
@@ -155,9 +251,9 @@ app.post('/api/tickets', async (req, res) => {
         created_at, 
         sla_deadline, 
         custom_sla_status
-      ) VALUES ($1, $2, $3, $4, 'Open', $5, NOW(), NOW() + $6 * INTERVAL '1 hour', 'In Progress') 
+      ) VALUES ($1, $2, $3, $4, $5, 'Open', $6, NOW(), NOW() + $7 * INTERVAL '1 hour', 'In Progress') 
       RETURNING *`,
-      [title, description, priority || 'Medium', category || 'IT Support', created_by, hoursToDeadline]
+      [ticketId, title, description, priority || 'Medium', category || 'IT Support', created_by, hoursToDeadline]
     );
     
     res.status(201).json(result.rows[0]);
@@ -166,12 +262,33 @@ app.post('/api/tickets', async (req, res) => {
     res.status(500).json({ error: 'Failed to create ticket with SLA parameters.' });
   }
 });
-// 5. ADMIN ROUTE: Fetch global system operations matrix with automated runtime SLA audit check
-// 5. ADMIN ROUTE: Fetch global system operations matrix with automated runtime SLA metrics
+// 5. ADMIN ROUTE: Fetch filtered system operations matrix and overall global system stats efficiently
 app.get('/api/admin/tickets', async (req, res) => {
+  const { search, priority } = req.query;
+  
   try {
-    // 1. Fetch tickets with real-time calculated SLA statuses
-    const ticketsResult = await pool.query(`
+    // 1. Fetch global stats efficiently via single-row database aggregation
+    const statsResult = await pool.query(`
+      SELECT 
+        COUNT(*)::int as total,
+        COUNT(CASE WHEN status = 'Open' OR status IS NULL THEN 1 END)::int as open,
+        COUNT(CASE WHEN status = 'On Hold' THEN 1 END)::int as on_hold,
+        COUNT(CASE WHEN status = 'Resolved' THEN 1 END)::int as resolved,
+        COUNT(CASE WHEN status != 'Resolved' AND NOW() > sla_deadline THEN 1 END)::int as breached
+      FROM tickets
+    `);
+    const stats = statsResult.rows[0] || { total: 0, open: 0, on_hold: 0, resolved: 0, breached: 0 };
+
+    const formattedStats = {
+      total: stats.total,
+      open: stats.open,
+      onHold: stats.on_hold,
+      resolved: stats.resolved,
+      breached: stats.breached
+    };
+
+    // 2. Build parametrized database query dynamically for filtering tickets
+    let queryText = `
       SELECT *,
         CASE 
           WHEN status = 'Resolved' THEN 'Fulfilled'
@@ -179,73 +296,85 @@ app.get('/api/admin/tickets', async (req, res) => {
           WHEN sla_deadline - NOW() < INTERVAL '1 hour' THEN 'Urgent Warning'
           ELSE 'In Progress'
         END as calculated_sla_status
-      FROM tickets 
-      ORDER BY created_at DESC
-    `);
+      FROM tickets
+    `;
+    const queryParams = [];
+    const whereClauses = [];
 
-    const tickets = ticketsResult.rows;
+    if (priority && priority !== 'All') {
+      queryParams.push(priority);
+      whereClauses.push(`priority = $${queryParams.length}`);
+    }
 
-    // 2. Pre-calculate metrics summaries directly on the dataset
-    const total = tickets.length;
-    const openCount = tickets.filter(t => t.status === 'Open' || !t.status).length;
-    const onHoldCount = tickets.filter(t => t.status === 'On Hold').length;
-    const resolvedCount = tickets.filter(t => t.status === 'Resolved').length;
-    
-    // An active breach means it's past deadline and not resolved yet
-    const breachedCount = tickets.filter(t => t.status !== 'Resolved' && new Date() > new Date(t.sla_deadline)).length;
+    if (search && search.trim() !== '') {
+      const searchPattern = `%${search.trim().toLowerCase()}%`;
+      queryParams.push(searchPattern);
+      const searchIdx = queryParams.length;
+      whereClauses.push(`(
+        LOWER(title) LIKE $${searchIdx} OR 
+        LOWER(description) LIKE $${searchIdx} OR 
+        LOWER(assigned_to) LIKE $${searchIdx} OR 
+        id::text LIKE $${searchIdx}
+      )`);
+    }
 
-    // 3. Send back the exact object structure the frontend expects
+    if (whereClauses.length > 0) {
+      queryText += ` WHERE ` + whereClauses.join(' AND ');
+    }
+
+    queryText += ` ORDER BY created_at DESC`;
+
+    const ticketsResult = await pool.query(queryText, queryParams);
+
     res.json({
-      tickets,
-      stats: {
-        total,
-        open: openCount,
-        onHold: onHoldCount,
-        resolved: resolvedCount,
-        breached: breachedCount
-      }
+      tickets: ticketsResult.rows,
+      stats: formattedStats
     });
   } catch (err) {
     console.error('Failed to fetch admin SLA logs:', err.message);
     res.status(500).json({ error: 'Failed to fetch admin tickets.' });
   }
 });
-// 6. ADMIN/STAFF UPDATE ROUTE: Patches updates and handles complete fulfillment SLA locks
+// 6. ADMIN/STAFF UPDATE ROUTE: Patches updates, assigns personnel, and handles SLA deadline recalculations
 app.put('/api/admin/tickets/:id', async (req, res) => {
   const { id } = req.params;
   const { priority, status, assigned_to } = req.body;
 
   try {
     const currentTicketCheck = await pool.query(
-      'SELECT status, created_at, sla_deadline FROM tickets WHERE id = $1', 
+      'SELECT status, created_at, sla_deadline, priority, assigned_to FROM tickets WHERE id = $1', 
       [id]
     );
     
     if (currentTicketCheck.rows.length === 0) return res.status(404).json({ error: 'Not found' });
 
     const currentTicket = currentTicketCheck.rows[0];
-    let calculatedDeadline = currentTicket.sla_deadline;
 
-    // RECALCULATE ONLY IF PRIORITY IS BEING CHANGED
+    // Determine SLA hours if priority is being changed
+    let hoursToAdd = null;
     if (priority) {
-      const baseTime = new Date(currentTicket.created_at);
-      let hoursToAdd = priority === 'High' ? 2 : priority === 'Medium' ? 6 : 24;
-      baseTime.setHours(baseTime.getHours() + hoursToAdd);
-      calculatedDeadline = baseTime.toISOString();
+      hoursToAdd = priority === 'High' ? 4 : priority === 'Medium' ? 12 : 24;
     }
 
+    const finalPriority = priority !== undefined ? priority : currentTicket.priority;
+    const finalStatus = status !== undefined ? status : currentTicket.status;
+    const finalAssignedTo = assigned_to !== undefined ? assigned_to : currentTicket.assigned_to;
+
+    // Use SQL NOW() + INTERVAL for deadline to avoid JavaScript timezone mismatch
     const updateResult = await pool.query(
       `UPDATE tickets 
-       SET priority = COALESCE($1, priority),
-           status = COALESCE($2, status),
-           sla_deadline = $3
-       WHERE id = $4
+       SET priority = $1,
+           status = $2,
+           sla_deadline = CASE WHEN $3::int IS NOT NULL THEN NOW() + ($3::int * INTERVAL '1 hour') ELSE sla_deadline END,
+           assigned_to = $4
+       WHERE id = $5
        RETURNING *`, 
-      [priority || null, status || null, calculatedDeadline, id]
+      [finalPriority, finalStatus, hoursToAdd, finalAssignedTo, id]
     );
 
     res.json(updateResult.rows[0]);
   } catch (err) {
+    console.error('Update failed:', err.message);
     res.status(500).json({ error: 'Update failed' });
   }
 });

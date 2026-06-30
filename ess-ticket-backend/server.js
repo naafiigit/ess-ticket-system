@@ -220,11 +220,6 @@ app.get('/api/tickets', async (req, res) => {
 // 4. CUSTOMER ROUTE: Insert new ticket records with exact database-level timezone calculations and unique random IDs
 app.post('/api/tickets', async (req, res) => {
   const { title, description, priority, category, created_by } = req.body;
-  
-  // Determine SLA hour window based on priority selection
-  let hoursToDeadline = 12; // Default Medium
-  if (priority === 'High') hoursToDeadline = 4;
-  if (priority === 'Low') hoursToDeadline = 24;
 
   try {
     // Generate unique random 8-digit ticket ID
@@ -238,7 +233,7 @@ app.post('/api/tickets', async (req, res) => {
       }
     }
 
-    // Insert the ticket along with its dynamically calculated timestamp
+    // Insert the ticket
     const result = await pool.query(
       `INSERT INTO tickets (
         id,
@@ -248,18 +243,16 @@ app.post('/api/tickets', async (req, res) => {
         category, 
         status, 
         created_by, 
-        created_at, 
-        sla_deadline, 
-        custom_sla_status
-      ) VALUES ($1, $2, $3, $4, $5, 'Open', $6, NOW(), NOW() + $7 * INTERVAL '1 hour', 'In Progress') 
+        created_at
+      ) VALUES ($1, $2, $3, $4, $5, 'Open', $6, NOW()) 
       RETURNING *`,
-      [ticketId, title, description, priority || 'Medium', category || 'IT Support', created_by, hoursToDeadline]
+      [ticketId, title, description, priority || 'Medium', category || 'IT Support', created_by]
     );
     
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error('SLA Ticket Creation Error:', err.message);
-    res.status(500).json({ error: 'Failed to create ticket with SLA parameters.' });
+    console.error('Ticket Creation Error:', err.message);
+    res.status(500).json({ error: 'Failed to create ticket.' });
   }
 });
 // 5. ADMIN ROUTE: Fetch filtered system operations matrix and overall global system stats efficiently
@@ -273,29 +266,22 @@ app.get('/api/admin/tickets', async (req, res) => {
         COUNT(*)::int as total,
         COUNT(CASE WHEN status = 'Open' OR status IS NULL THEN 1 END)::int as open,
         COUNT(CASE WHEN status = 'On Hold' THEN 1 END)::int as on_hold,
-        COUNT(CASE WHEN status = 'Resolved' THEN 1 END)::int as resolved,
-        COUNT(CASE WHEN status != 'Resolved' AND NOW() > sla_deadline THEN 1 END)::int as breached
+        COUNT(CASE WHEN status = 'Resolved' THEN 1 END)::int as resolved
       FROM tickets
     `);
-    const stats = statsResult.rows[0] || { total: 0, open: 0, on_hold: 0, resolved: 0, breached: 0 };
+    const stats = statsResult.rows[0] || { total: 0, open: 0, on_hold: 0, resolved: 0 };
 
     const formattedStats = {
       total: stats.total,
       open: stats.open,
       onHold: stats.on_hold,
       resolved: stats.resolved,
-      breached: stats.breached
+      breached: 0
     };
 
     // 2. Build parametrized database query dynamically for filtering tickets
     let queryText = `
-      SELECT *,
-        CASE 
-          WHEN status = 'Resolved' THEN 'Fulfilled'
-          WHEN NOW() > sla_deadline THEN 'Breached'
-          WHEN sla_deadline - NOW() < INTERVAL '1 hour' THEN 'Urgent Warning'
-          ELSE 'In Progress'
-        END as calculated_sla_status
+      SELECT *
       FROM tickets
     `;
     const queryParams = [];
@@ -335,14 +321,14 @@ app.get('/api/admin/tickets', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch admin tickets.' });
   }
 });
-// 6. ADMIN/STAFF UPDATE ROUTE: Patches updates, assigns personnel, and handles SLA deadline recalculations
+// 6. ADMIN/STAFF UPDATE ROUTE: Patches updates, assigns personnel
 app.put('/api/admin/tickets/:id', async (req, res) => {
   const { id } = req.params;
   const { priority, status, assigned_to } = req.body;
 
   try {
     const currentTicketCheck = await pool.query(
-      'SELECT status, created_at, sla_deadline, priority, assigned_to FROM tickets WHERE id = $1', 
+      'SELECT status, priority, assigned_to FROM tickets WHERE id = $1', 
       [id]
     );
     
@@ -350,26 +336,18 @@ app.put('/api/admin/tickets/:id', async (req, res) => {
 
     const currentTicket = currentTicketCheck.rows[0];
 
-    // Determine SLA hours if priority is being changed
-    let hoursToAdd = null;
-    if (priority) {
-      hoursToAdd = priority === 'High' ? 4 : priority === 'Medium' ? 12 : 24;
-    }
-
     const finalPriority = priority !== undefined ? priority : currentTicket.priority;
     const finalStatus = status !== undefined ? status : currentTicket.status;
     const finalAssignedTo = assigned_to !== undefined ? assigned_to : currentTicket.assigned_to;
 
-    // Use SQL NOW() + INTERVAL for deadline to avoid JavaScript timezone mismatch
     const updateResult = await pool.query(
       `UPDATE tickets 
        SET priority = $1,
            status = $2,
-           sla_deadline = CASE WHEN $3::int IS NOT NULL THEN NOW() + ($3::int * INTERVAL '1 hour') ELSE sla_deadline END,
-           assigned_to = $4
-       WHERE id = $5
+           assigned_to = $3
+       WHERE id = $4
        RETURNING *`, 
-      [finalPriority, finalStatus, hoursToAdd, finalAssignedTo, id]
+      [finalPriority, finalStatus, finalAssignedTo, id]
     );
 
     res.json(updateResult.rows[0]);
@@ -378,33 +356,18 @@ app.put('/api/admin/tickets/:id', async (req, res) => {
     res.status(500).json({ error: 'Update failed' });
   }
 });
-// 7. STAFF ROUTE: Fetch only tickets assigned to a specific IT specialist 
-// 7. STAFF ROUTE: Fetch only tickets assigned to a specific IT specialist with live SLA state compilation
+// 7. STAFF ROUTE: Fetch only tickets assigned to a specific IT specialist
 app.get('/api/staff/tickets', async (req, res) => {
   const { email } = req.query;
   try {
-    // 1. Maintain your structural runtime check for background breaches
-    await pool.query(`
-      UPDATE tickets 
-      SET custom_sla_status = 'SLA Breached' 
-      WHERE sla_deadline < CURRENT_TIMESTAMP AND status != 'Resolved' AND custom_sla_status = 'In Progress'
-    `);
-
-    // 2. Fetch the tickets assigned to this specialist AND calculate the active live state strings
+    // Fetch the tickets assigned to this specialist
     const result = await pool.query(`
-      SELECT *,
-        CASE 
-          WHEN status = 'Resolved' THEN 'Fulfilled'
-          WHEN NOW() > sla_deadline THEN 'Breached'
-          WHEN sla_deadline - NOW() < INTERVAL '1 hour' THEN 'Urgent Warning'
-          ELSE 'In Progress'
-        END as calculated_sla_status
+      SELECT *
       FROM tickets 
       WHERE assigned_to = $1 
       ORDER BY created_at DESC
     `, [email]);
 
-    // 3. Send the complete rows back to the frontend Kanban board layout
     res.json(result.rows);
   } catch (err) {
     console.error('Staff Fetch Error:', err.message);
@@ -437,15 +400,9 @@ app.put('/api/staff/tickets/:id/status', async (req, res) => {
       [status, id]
     );
 
-    // 3. Fetch the fresh database state with all calculated SLA metrics included for the card UI
+    // 3. Fetch the fresh database state
     const updatedResult = await pool.query(`
-      SELECT *,
-        CASE 
-          WHEN status = 'Resolved' THEN 'Fulfilled'
-          WHEN NOW() > sla_deadline THEN 'Breached'
-          WHEN sla_deadline - NOW() < INTERVAL '1 hour' THEN 'Urgent Warning'
-          ELSE 'In Progress'
-        END as calculated_sla_status
+      SELECT *
       FROM tickets 
       WHERE id = $1
     `, [id]);
@@ -538,9 +495,8 @@ async function checkAndEmailSLABreaches() {
   }
 }
 
-// 3. Run the worker automatically every 60 seconds background thread loop
-// 1000ms * 60 = 1 minute
-setInterval(checkAndEmailSLABreaches, 60000);
+// 3. Run the worker automatically every 60 seconds background thread loop (Disabled - SLA not used)
+// setInterval(checkAndEmailSLABreaches, 60000);
 
 const PORT = 5000;
 app.listen(PORT, () => {

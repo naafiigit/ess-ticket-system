@@ -62,79 +62,79 @@ export default function TicketForm({ userEmail, onLogout }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col md:flex-row">
+    <div className="min-h-screen text-[#224986] flex flex-col md:flex-row bg-transparent">
       {/* Left Column: Ticket Submission Form */}
-      <div className="w-full md:w-1/2 p-8 flex flex-col justify-center border-r border-slate-900">
+      <div className="w-full md:w-1/2 p-8 flex flex-col justify-center border-r border-[#224986]/10 bg-[#FBFBE2]/60 backdrop-blur-md">
         <div className="max-w-md w-full mx-auto">
           <div className="flex justify-between items-center mb-6">
-            <span className="text-xs font-mono text-slate-500 bg-slate-900 border border-slate-800/80 rounded-md px-2 py-1">
+            <span className="text-xs font-mono text-[#224986]/80 bg-[#FBFBE2]/90 border border-[#224986]/20 rounded-md px-2 py-1">
               Active User: {userEmail}
             </span>
-            <button onClick={onLogout} className="text-xs font-medium text-slate-400 hover:text-red-400 transition-colors">
+            <button onClick={onLogout} className="text-xs font-semibold text-[#224986]/70 hover:text-[#224986] transition-colors cursor-pointer">
               Logout
             </button>
           </div>
           
-          <h2 className="text-3xl font-black mb-1 tracking-tight">Submit a Support Ticket</h2>
-          <p className="text-sm text-slate-400 mb-6">Describe your issue and our team will resolve it.</p>
+          <h2 className="text-3xl font-black mb-1 tracking-tight text-[#224986]">Submit a Support Ticket</h2>
+          <p className="text-sm text-[#224986]/70 mb-6">Describe your issue and our team will resolve it.</p>
 
           {message.text && (
-            <div className={`p-4 rounded-xl mb-6 text-sm border font-medium ${message.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
+            <div className={`p-4 rounded-xl mb-6 text-sm border font-medium bg-[#224986]/10 border-[#224986]/20 text-[#224986] backdrop-blur-md`}>
               {message.text}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Ticket Title</label>
-              <input type="text" required value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-sm outline-none text-slate-100 focus:border-blue-500 transition-all" />
+              <label className="block text-xs font-bold text-[#224986]/80 uppercase tracking-wider mb-2">Ticket Title</label>
+              <input type="text" required value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full bg-[#FBFBE2]/90 border border-[#224986]/30 rounded-xl p-3 text-sm outline-none text-[#224986] focus:border-[#224986] transition-all shadow-inner" />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Category</label>
-              <select value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-sm outline-none text-slate-100 focus:border-blue-500 transition-all">
+              <label className="block text-xs font-bold text-[#224986]/80 uppercase tracking-wider mb-2">Category</label>
+              <select value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} className="w-full bg-[#FBFBE2]/90 border border-[#224986]/30 rounded-xl p-3 text-sm outline-none text-[#224986] focus:border-[#224986] transition-all cursor-pointer shadow-inner">
                 <option value="IT Support">IT Support</option>
                 <option value="Access Management">Access Management</option>
                 <option value="Hardware">Hardware Fault</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Priority Level</label>
+              <label className="block text-xs font-bold text-[#224986]/80 uppercase tracking-wider mb-2">Priority Level</label>
               <div className="grid grid-cols-3 gap-3">
                 {['Low', 'Medium', 'High'].map((p) => (
-                  <button type="button" key={p} onClick={() => setFormData({ ...formData, priority: p })} className={`py-2 text-xs font-bold rounded-xl border transition-all ${formData.priority === p ? 'bg-orange-500 text-white border-orange-500 shadow-md' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'}`}>{p}</button>
+                  <button type="button" key={p} onClick={() => setFormData({ ...formData, priority: p })} className={`py-2 text-xs font-bold rounded-xl border transition-all cursor-pointer ${formData.priority === p ? 'bg-[#224986] text-[#FBFBE2] border-[#224986] shadow-md' : 'bg-[#FBFBE2]/90 border-[#224986]/20 text-[#224986]/60 hover:border-[#224986]/40 hover:text-[#224986]'}`}>{p}</button>
                 ))}
               </div>
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Detailed Description</label>
-              <textarea rows="4" required value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-sm outline-none text-slate-100 focus:border-blue-500 transition-all resize-none" />
+              <label className="block text-xs font-bold text-[#224986]/80 uppercase tracking-wider mb-2">Detailed Description</label>
+              <textarea rows="4" required value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full bg-[#FBFBE2]/90 border border-[#224986]/30 rounded-xl p-3 text-sm outline-none text-[#224986] focus:border-[#224986] transition-all resize-none shadow-inner" />
             </div>
-            <button type="submit" disabled={loading} className="w-full py-3.5 bg-slate-900 border border-slate-800 hover:border-blue-500 text-slate-200 font-bold rounded-xl text-sm transition-all">{loading ? 'Processing System Delivery...' : 'Submit Ticket'}</button>
+            <button type="submit" disabled={loading} className="w-full py-3.5 bg-[#224986] border border-[#224986] hover:bg-[#224986]/90 text-[#FBFBE2] font-bold rounded-xl text-sm transition-all cursor-pointer shadow-md">{loading ? 'Processing System Delivery...' : 'Submit Ticket'}</button>
           </form>
         </div>
       </div>
 
       {/* Right Column: User's Personal Ticket History */}
-      <div className="w-full md:w-1/2 p-8 bg-slate-950">
+      <div className="w-full md:w-1/2 p-8 bg-[#FBFBE2]/40 backdrop-blur-md">
         <div className="max-w-md w-full mx-auto">
-          <h3 className="text-xl font-bold mb-1 tracking-tight text-slate-300">Your Filed Tickets</h3>
-          <p className="text-xs text-slate-500 mb-6">Track historical activity logs and support statuses live.</p>
+          <h3 className="text-xl font-bold mb-1 tracking-tight text-[#224986]">Your Filed Tickets</h3>
+          <p className="text-xs text-[#224986]/70 mb-6">Track historical activity logs and support statuses live.</p>
           <div className="space-y-4 overflow-y-auto max-h-[75vh] pr-2">
             {tickets.map((ticket) => (
-              <div key={ticket.id} className="p-4 bg-slate-900/40 border border-slate-900 rounded-xl">
+              <div key={ticket.id} className="p-4 bg-[#FBFBE2]/90 border border-[#224986]/10 rounded-xl shadow-sm">
                 <div className="flex justify-between items-start mb-2">
-                  <h4 className="font-semibold text-slate-200 text-sm">{ticket.title}</h4>
-                  <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${ticket.status === 'Open' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'}`}>{ticket.status}</span>
+                  <h4 className="font-semibold text-[#224986] text-sm">{ticket.title}</h4>
+                  <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${ticket.status === 'Open' ? 'bg-[#224986]/10 border-[#224986]/20 text-[#224986]' : 'bg-[#224986]/5 border-[#224986]/10 text-[#224986]/60 line-through'}`}>{ticket.status}</span>
                 </div>
-                <p className="text-xs text-slate-400 line-clamp-2">{ticket.description}</p>
+                <p className="text-xs text-[#224986]/80 line-clamp-2">{ticket.description}</p>
                 {ticket.assigned_to && (
-                  <div className="mt-2 text-[11px] font-medium text-indigo-400/90 bg-indigo-500/5 border border-indigo-500/10 px-2 py-1 rounded-md inline-block">
+                  <div className="mt-2 text-[11px] font-semibold text-[#224986]/90 bg-[#224986]/5 border border-[#224986]/10 px-2 py-1 rounded-md inline-block">
                     Assigned to: {ticket.assigned_to}
                   </div>
                 )}
               </div>
             ))}
-            {tickets.length === 0 && <div className="border border-dashed border-slate-800 rounded-xl p-8 text-center text-xs text-slate-500">No tickets submitted yet. Your active status queue will appear here.</div>}
+            {tickets.length === 0 && <div className="border border-dashed border-[#224986]/20 bg-[#FBFBE2]/30 rounded-xl p-8 text-center text-xs text-[#224986]/50">No tickets submitted yet. Your active status queue will appear here.</div>}
           </div>
         </div>
       </div>

@@ -1,1 +1,37 @@
 @import "tailwindcss";
+
+@theme {
+  --color-primary: #224986;
+  --color-secondary: #FBFBE2;
+}
+
+body {
+  background-color: #FBFBE2;
+  color: #224986;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background-image: radial-gradient(circle, rgba(251, 251, 226, 0.93) 0%, rgba(251, 251, 226, 0.97) 100%), url('/Picture1.png');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-attachment: fixed;
+  background-size: min(80vw, 500px);
+  margin: 0;
+}
+
+/* Premium scrollbar styling to match the primary/secondary palette */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FBFBE2;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(34, 73, 134, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(34, 73, 134, 0.4);
+}

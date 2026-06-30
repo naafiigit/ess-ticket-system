@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import CountdownTimer from './CountdownTimer';
 
 export default function AdminDashboard({ onLogout }) {
   const [tickets, setTickets] = useState([]);
-  const [stats, setStats] = useState({ total: 0, open: 0, onHold: 0, resolved: 0, breached: 0 });
+  const [stats, setStats] = useState({ total: 0, open: 0, onHold: 0, resolved: 0 });
   const [staffMembers, setStaffMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -78,7 +77,7 @@ export default function AdminDashboard({ onLogout }) {
 
       // Deconstruct the data layout containing raw array rows and aggregate counts
       setTickets(ticketsData.tickets || []);
-      setStats(ticketsData.stats || { total: 0, open: 0, onHold: 0, resolved: 0, breached: 0 });
+      setStats(ticketsData.stats || { total: 0, open: 0, onHold: 0, resolved: 0 });
       setStaffMembers(staffData);
     } catch (err) {
       setError(err.message);
@@ -107,148 +106,115 @@ export default function AdminDashboard({ onLogout }) {
     console.error("Sync error:", err);
   }
 };
-  const formatDeadline = (isoString) => {
-    if (!isoString) return '--';
-    const date = new Date(isoString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + 
-           date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-  };
-
-  const getSLABadgeStyle = (status) => {
-    switch (status) {
-      case 'Breached':
-        return 'bg-red-500/10 border-red-500/30 text-red-400 animate-pulse';
-      case 'Urgent Warning':
-        return 'bg-amber-500/10 border-amber-500/30 text-amber-400 font-bold';
-      case 'Fulfilled':
-        return 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400';
-      default: // 'In Progress'
-        return 'bg-blue-500/10 border-blue-500/20 text-blue-400';
-    }
-  };
-
   // --- Dynamic CSS Pie Chart Percentages Engine ---
   const totalForChart = stats.total || 1;
   const pOpen = (stats.open / totalForChart) * 360;
   const pOnHold = (stats.onHold / totalForChart) * 360;
-  const pBreached = (stats.breached / totalForChart) * 360;
 
   const degOpen = pOpen;
   const degOnHold = degOpen + pOnHold;
-  const degBreached = degOnHold + pBreached;
 
   const pieChartStyle = {
     background: `conic-gradient(
-      #3b82f6 0deg ${degOpen}deg, 
-      #f59e0b ${degOpen}deg ${degOnHold}deg, 
-      #ef4444 ${degOnHold}deg ${degBreached}deg, 
-      #10b981 ${degBreached}deg 360deg
+      #224986 0deg ${degOpen}deg, 
+      rgba(34, 73, 134, 0.6) ${degOpen}deg ${degOnHold}deg, 
+      rgba(34, 73, 134, 0.25) ${degOnHold}deg 360deg
     )`
   };
 
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-6 relative overflow-hidden">
-      <div className="absolute top-0 left-1/3 w-[500px] h-[500px] bg-blue-600/5 rounded-full blur-3xl pointer-events-none"></div>
+    <div className="min-h-screen text-[#224986] p-6 relative overflow-hidden bg-transparent">
+      <div className="absolute top-0 left-1/3 w-[500px] h-[500px] bg-[#224986]/5 rounded-full blur-3xl pointer-events-none"></div>
 
-      <header className="max-w-7xl mx-auto flex justify-between items-center border-b border-slate-800/80 pb-5 mb-8">
+      <header className="max-w-7xl mx-auto flex justify-between items-center border-b border-[#224986]/20 pb-5 mb-8">
         <div>
-          <h1 className="text-xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-slate-100 via-slate-200 to-slate-400">
+          <h1 className="text-xl font-black tracking-wider text-[#224986]">
             CENTRAL ADMINISTRATIVE OPERATIONS
           </h1>
-          <p className="text-[10px] font-bold tracking-[0.15em] text-blue-500 uppercase mt-1">
+          <p className="text-[10px] font-bold tracking-[0.15em] text-[#224986]/80 uppercase mt-1">
             Global Oversight & Service Desk Assignment Console
           </p>
         </div>
-        <button onClick={onLogout} className="px-4 py-2 bg-slate-900/80 hover:bg-slate-800 border border-slate-800/60 text-slate-300 hover:text-red-400 font-bold rounded-xl text-[11px] tracking-widest uppercase transition-all shadow-md active:scale-95">
+        <button onClick={onLogout} className="px-4 py-2 bg-[#224986] hover:bg-[#224986]/90 border border-[#224986] text-[#FBFBE2] font-bold rounded-xl text-[11px] tracking-widest uppercase transition-all shadow-md active:scale-95 cursor-pointer">
           Logout
         </button>
       </header>
 
       <main className="max-w-7xl mx-auto space-y-8">
-        {error && <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-xl mb-6">⚠️ {error}</div>}
+        {error && <div className="p-4 bg-[#224986]/10 border border-[#224986]/20 text-[#224986] text-sm rounded-xl mb-6">⚠️ {error}</div>}
 
         {loading ? (
           <div className="flex items-center space-x-3">
-            <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-xs text-slate-500 tracking-widest uppercase font-medium">Recompiling core matrix dashboards...</p>
+            <div className="w-4 h-4 border-2 border-[#224986] border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-xs text-[#224986]/60 tracking-widest uppercase font-medium">Recompiling core matrix dashboards...</p>
           </div>
         ) : (
           <>
             {/* Visual Metrics Panel: Total, Open, On Hold, Breach, Resolved */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               
               {/* TOTAL TICKETS CARD */}
-              <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-xl shadow-xl flex items-center justify-between group hover:border-slate-700 transition-all">
+              <div className="bg-[#FBFBE2]/70 border border-[#224986]/15 rounded-2xl p-5 backdrop-blur-xl shadow-xl flex items-center justify-between group hover:border-[#224986]/40 transition-all">
                 <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Tickets</p>
-                  <h3 className="text-2xl font-black text-slate-100 mt-1 font-mono">{stats.total}</h3>
+                  <p className="text-[10px] font-bold text-[#224986]/60 uppercase tracking-wider">Total Tickets</p>
+                  <h3 className="text-2xl font-black text-[#224986] mt-1 font-mono">{stats.total}</h3>
                 </div>
-                <div className="w-10 h-10 rounded-xl bg-slate-950 border border-slate-900 flex items-center justify-center text-slate-400 font-bold text-sm shadow-[0_0_10px_rgba(255,255,255,0.02)]">∑</div>
+                <div className="w-10 h-10 rounded-xl bg-[#FBFBE2] border border-[#224986]/10 flex items-center justify-center text-[#224986]/60 font-bold text-sm shadow-[0_0_10px_rgba(34,73,134,0.02)]">∑</div>
               </div>
 
               {/* OPEN CARD */}
-              <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-xl shadow-xl flex items-center justify-between group hover:border-blue-500/20 transition-all">
+              <div className="bg-[#FBFBE2]/70 border border-[#224986]/20 rounded-2xl p-5 backdrop-blur-xl shadow-xl flex items-center justify-between group hover:border-[#224986]/50 transition-all">
                 <div>
-                  <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Open Status</p>
-                  <h3 className="text-2xl font-black text-slate-100 mt-1 font-mono">{stats.open}</h3>
+                  <p className="text-[10px] font-bold text-[#224986] uppercase tracking-wider">Open Status</p>
+                  <h3 className="text-2xl font-black text-[#224986] mt-1 font-mono">{stats.open}</h3>
                 </div>
-                <div className="w-10 h-10 rounded-xl bg-blue-500/5 border border-blue-500/10 flex items-center justify-center text-blue-500 font-bold text-sm shadow-[0_0_10px_rgba(59,130,246,0.1)]">●</div>
+                <div className="w-10 h-10 rounded-xl bg-[#224986]/10 border border-[#224986]/20 flex items-center justify-center text-[#224986] font-bold text-sm shadow-[0_0_10px_rgba(34,73,134,0.1)]">●</div>
               </div>
 
               {/* ON HOLD CARD */}
-              <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-xl shadow-xl flex items-center justify-between group hover:border-amber-500/20 transition-all">
+              <div className="bg-[#FBFBE2]/70 border border-[#224986]/15 rounded-2xl p-5 backdrop-blur-xl shadow-xl flex items-center justify-between group hover:border-[#224986]/40 transition-all">
                 <div>
-                  <p className="text-[10px] font-bold text-amber-500 uppercase tracking-wider">On Hold Status</p>
-                  <h3 className="text-2xl font-black text-amber-400 mt-1 font-mono">{stats.onHold}</h3>
+                  <p className="text-[10px] font-bold text-[#224986]/70 uppercase tracking-wider">On Hold Status</p>
+                  <h3 className="text-2xl font-black text-[#224986]/70 mt-1 font-mono">{stats.onHold}</h3>
                 </div>
-                <div className="w-10 h-10 rounded-xl bg-amber-500/5 border border-amber-500/10 flex items-center justify-center text-amber-400 text-xs shadow-[0_0_10px_rgba(245,158,11,0.1)]">●</div>
+                <div className="w-10 h-10 rounded-xl bg-[#224986]/5 border border-[#224986]/10 flex items-center justify-center text-[#224986]/50 text-xs shadow-[0_0_10px_rgba(34,73,134,0.05)]">●</div>
               </div>
 
-              {/* SLA BREACHES CARD */}
-              <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-xl shadow-xl flex items-center justify-between group hover:border-red-500/40 transition-all">
-                <div>
-                  <p className="text-[10px] font-bold text-red-400 uppercase tracking-wider">SLA Breaches</p>
-                  <h3 className="text-2xl font-black text-rose-500 mt-1 font-mono">{stats.breached}</h3>
-                </div>
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold ${stats.breached > 0 ? 'bg-red-500/10 text-red-400 animate-pulse border border-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : 'bg-slate-950 text-slate-600 border border-slate-900'}`}>🛑</div>
-              </div>
+
 
               {/* RESOLVED CARD */}
-              <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-xl shadow-xl flex items-center justify-between group hover:border-emerald-500/20 transition-all">
+              <div className="bg-[#FBFBE2]/70 border border-[#224986]/10 rounded-2xl p-5 backdrop-blur-xl shadow-xl flex items-center justify-between group hover:border-[#224986]/30 transition-all">
                 <div>
-                  <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Resolved Closed</p>
-                  <h3 className="text-2xl font-black text-emerald-400 mt-1 font-mono">{stats.resolved}</h3>
+                  <p className="text-[10px] font-bold text-[#224986]/50 uppercase tracking-wider">Resolved Closed</p>
+                  <h3 className="text-2xl font-black text-[#224986]/50 mt-1 font-mono">{stats.resolved}</h3>
                 </div>
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/5 border border-emerald-500/10 flex items-center justify-center text-emerald-400 font-bold text-sm shadow-[0_0_10px_rgba(16,185,129,0.1)]">✓</div>
+                <div className="w-10 h-10 rounded-xl bg-[#224986]/5 border border-[#224986]/10 flex items-center justify-center text-[#224986]/40 font-bold text-sm shadow-[0_0_10px_rgba(34,73,134,0.02)]">✓</div>
               </div>
 
             </div>
 
-            {/* SLA PERFORMANCE & STAFF PROVISIONING GRID */}
+            {/* TICKET DISTRIBUTION & STAFF PROVISIONING GRID */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               
-              {/* SLA Performance summary - occupies 2 columns */}
-              <div className="lg:col-span-2 bg-slate-900/20 border border-slate-800/60 rounded-2xl p-6 backdrop-blur-xl flex flex-col md:flex-row items-center justify-around gap-8">
+              {/* Ticket Distribution - occupies 2 columns */}
+              <div className="lg:col-span-2 bg-[#FBFBE2]/60 border border-[#224986]/15 rounded-2xl p-6 backdrop-blur-xl flex flex-col md:flex-row items-center justify-around gap-8">
                 <div className="space-y-3 max-w-sm">
-                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-300">SLA Performance Summary</h3>
-                  <p className="text-xs text-slate-500 leading-relaxed">
-                    Real-time overview of open infrastructure incidents, queue holdbacks, active target deadlocks, and resolved workloads.
+                  <h3 className="text-sm font-black uppercase tracking-wider text-[#224986]">Ticket Distribution</h3>
+                  <p className="text-xs text-[#224986]/70 leading-relaxed">
+                    Real-time overview of open infrastructure incidents, queue holdbacks, and resolved workloads.
                   </p>
                   
                   {/* Chart Color Legends */}
                   <div className="grid grid-cols-2 gap-3 pt-2">
-                    <div className="flex items-center gap-2 text-[11px] text-slate-400 font-medium">
-                      <span className="w-2.5 h-2.5 rounded bg-blue-500"></span> Open ({stats.open})
+                    <div className="flex items-center gap-2 text-[11px] text-[#224986]/80 font-medium">
+                      <span className="w-2.5 h-2.5 rounded bg-[#224986]"></span> Open ({stats.open})
                     </div>
-                    <div className="flex items-center gap-2 text-[11px] text-slate-400 font-medium">
-                      <span className="w-2.5 h-2.5 rounded bg-amber-500"></span> On Hold ({stats.onHold})
+                    <div className="flex items-center gap-2 text-[11px] text-[#224986]/80 font-medium">
+                      <span className="w-2.5 h-2.5 rounded bg-[#224986]/60"></span> On Hold ({stats.onHold})
                     </div>
-                    <div className="flex items-center gap-2 text-[11px] text-slate-400 font-medium">
-                      <span className="w-2.5 h-2.5 rounded bg-red-500"></span> Breached ({stats.breached})
-                    </div>
-                    <div className="flex items-center gap-2 text-[11px] text-slate-400 font-medium">
-                      <span className="w-2.5 h-2.5 rounded bg-emerald-500"></span> Resolved ({stats.resolved})
+                    <div className="flex items-center gap-2 text-[11px] text-[#224986]/80 font-medium">
+                      <span className="w-2.5 h-2.5 rounded bg-[#224986]/25"></span> Resolved ({stats.resolved})
                     </div>
                   </div>
                 </div>
@@ -259,35 +225,35 @@ export default function AdminDashboard({ onLogout }) {
                     className="w-40 h-40 rounded-full shadow-2xl transition-all duration-500" 
                     style={pieChartStyle}
                   ></div>
-                  <div className="absolute w-[110px] h-[110px] bg-slate-950 rounded-full flex flex-col items-center justify-center border border-slate-900 shadow-inner">
-                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Total</span>
-                    <span className="text-xl font-black text-slate-200 mt-0.5">{stats.total}</span>
+                  <div className="absolute w-[110px] h-[110px] bg-[#FBFBE2] rounded-full flex flex-col items-center justify-center border border-[#224986]/10 shadow-inner">
+                    <span className="text-[9px] font-bold text-[#224986]/50 uppercase tracking-widest">Total</span>
+                    <span className="text-xl font-black text-[#224986] mt-0.5">{stats.total}</span>
                   </div>
                 </div>
               </div>
 
               {/* Create IT Support Specialist Panel */}
-              <div className="bg-slate-900/20 border border-slate-800/60 rounded-2xl p-6 backdrop-blur-xl flex flex-col justify-between">
+              <div className="bg-[#FBFBE2]/60 border border-[#224986]/15 rounded-2xl p-6 backdrop-blur-xl flex flex-col justify-between">
                 <div>
-                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-300 mb-1">Add Support Specialist</h3>
-                  <p className="text-[10px] font-bold text-blue-500 tracking-[0.1em] uppercase mb-4">
+                  <h3 className="text-sm font-black uppercase tracking-wider text-[#224986] mb-1">Add Support Specialist</h3>
+                  <p className="text-[10px] font-bold text-[#224986]/80 tracking-[0.1em] uppercase mb-4">
                     IT Support Specialist Provisioning
                   </p>
 
                   {createError && (
-                    <div className="p-2.5 rounded-lg mb-3 text-[10px] font-medium bg-red-500/10 border border-red-500/20 text-red-400">
+                    <div className="p-2.5 rounded-lg mb-3 text-[10px] font-medium bg-[#224986]/10 border border-[#224986]/20 text-[#224986]">
                       ⚠️ {createError}
                     </div>
                   )}
                   {createSuccess && (
-                    <div className="p-2.5 rounded-lg mb-3 text-[10px] font-medium bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                    <div className="p-2.5 rounded-lg mb-3 text-[10px] font-medium bg-[#224986]/10 border border-[#224986]/20 text-[#224986]">
                       {createSuccess}
                     </div>
                   )}
 
                   <form onSubmit={handleCreateStaff} className="space-y-3">
                     <div>
-                      <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                      <label className="block text-[9px] font-bold text-[#224986]/70 uppercase tracking-wider mb-1">
                         Email Address
                       </label>
                       <input
@@ -296,12 +262,12 @@ export default function AdminDashboard({ onLogout }) {
                         value={newStaffEmail}
                         onChange={(e) => setNewStaffEmail(e.target.value)}
                         placeholder="specialist@statsethiopia.gov.et"
-                        className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500/50 rounded-lg p-2 text-xs text-slate-200 placeholder-slate-700 outline-none transition-all shadow-inner"
+                        className="w-full bg-[#FBFBE2]/90 border border-[#224986]/30 focus:border-[#224986]/50 rounded-lg p-2 text-xs text-[#224986] placeholder-[#224986]/40 outline-none transition-all shadow-inner"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                      <label className="block text-[9px] font-bold text-[#224986]/70 uppercase tracking-wider mb-1">
                         Password
                       </label>
                       <input
@@ -310,14 +276,14 @@ export default function AdminDashboard({ onLogout }) {
                         value={newStaffPassword}
                         onChange={(e) => setNewStaffPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500/50 rounded-lg p-2 text-xs text-slate-200 placeholder-slate-700 outline-none transition-all shadow-inner"
+                        className="w-full bg-[#FBFBE2]/90 border border-[#224986]/30 focus:border-[#224986]/50 rounded-lg p-2 text-xs text-[#224986] placeholder-[#224986]/40 outline-none transition-all shadow-inner"
                       />
                     </div>
 
                     <button
                       type="submit"
                       disabled={creating}
-                      className="w-full py-2.5 mt-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 text-white font-bold rounded-lg text-[10px] uppercase tracking-wider shadow-md transition-all active:scale-[0.98]"
+                      className="w-full py-2.5 mt-2 bg-[#224986] hover:bg-[#224986]/90 disabled:opacity-50 text-[#FBFBE2] font-bold rounded-lg text-[10px] uppercase tracking-wider shadow-md transition-all active:scale-[0.98] cursor-pointer"
                     >
                       {creating ? 'Provisioning...' : 'Create Account'}
                     </button>
@@ -327,22 +293,22 @@ export default function AdminDashboard({ onLogout }) {
 
             </div>
             {/* 🔍 SEARCH & FILTER BAR COMPONENT */}
-            <div className="bg-slate-900/20 border border-slate-800/60 rounded-2xl p-4 backdrop-blur-xl flex flex-col sm:flex-row items-center gap-4 justify-between">
+            <div className="bg-[#FBFBE2]/60 border border-[#224986]/15 rounded-2xl p-4 backdrop-blur-xl flex flex-col sm:flex-row items-center gap-4 justify-between">
               
               {/* Keyword Search Input Box */}
               <div className="relative w-full sm:w-96">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500 pointer-events-none text-xs">🔍</span>
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-[#224986]/60 pointer-events-none text-xs">🔍</span>
                 <input
                   type="text"
                   placeholder="Search by ID, title, summary, or assigned personnel..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-slate-200 placeholder-slate-600 outline-none focus:border-blue-500/50 transition-all shadow-inner"
+                  className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-[#FBFBE2]/90 border border-[#224986]/30 text-[#224986] placeholder-[#224986]/40 outline-none focus:border-[#224986]/50 transition-all shadow-inner"
                 />
                 {searchTerm && (
                   <button 
                     onClick={() => setSearchTerm('')}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-300 text-[10px] uppercase font-bold tracking-wider"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#224986]/60 hover:text-[#224986] text-[10px] uppercase font-bold tracking-wider cursor-pointer"
                   >
                     Clear
                   </button>
@@ -351,11 +317,11 @@ export default function AdminDashboard({ onLogout }) {
 
               {/* Priority State Dropdown Filter */}
               <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Priority Filter:</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#224986]/60">Priority Filter:</span>
                 <select
                   value={priorityFilter}
                   onChange={(e) => setPriorityFilter(e.target.value)}
-                  className="p-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-slate-300 font-medium outline-none cursor-pointer hover:border-slate-700 min-w-[120px] transition-all shadow-md"
+                  className="p-2 text-xs rounded-xl bg-[#FBFBE2]/90 border border-[#224986]/30 text-[#224986]/80 font-medium outline-none cursor-pointer hover:border-[#224986]/50 min-w-[120px] transition-all shadow-md"
                 >
                   <option value="All">All Priorities</option>
                   <option value="Low">Low Only</option>
@@ -367,115 +333,89 @@ export default function AdminDashboard({ onLogout }) {
             </div>
 
             {/* Main Operational Table Window */}
-            <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl overflow-hidden backdrop-blur-xl shadow-2xl"></div>
-
-            {/* Main Operational Table Window */}
-            <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl overflow-hidden backdrop-blur-xl shadow-2xl">
+            <div className="bg-[#FBFBE2]/60 border border-[#224986]/15 rounded-2xl overflow-hidden backdrop-blur-xl shadow-2xl">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
-                    <tr className="border-b border-slate-800 bg-slate-950/40 text-slate-400 font-bold tracking-wider uppercase">
+                    <tr className="border-b border-[#224986]/20 bg-[#FBFBE2]/80 text-[#224986]/80 font-bold tracking-wider uppercase">
                       <th className="p-4 w-12 text-center">ID</th>
                       <th className="p-4">Issue Details</th>
-                      <th className="p-4">SLA Status</th>
+
                       <th className="p-4">Priority</th>
                       <th className="p-4">Status</th>
                       <th className="p-4">Assigned Personnel</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/50">
+                  <tbody className="divide-y divide-[#224986]/10">
                     {tickets.map((ticket) => (
-                      <tr key={ticket.id} className="hover:bg-slate-900/20 transition-colors">
-                        <td className="p-4 text-slate-600 font-mono text-center">#{ticket.id}</td>
+                      <tr key={ticket.id} className="hover:bg-[#224986]/5 transition-colors">
+                        <td className="p-4 text-[#224986]/50 font-mono text-center">#{ticket.id}</td>
                         
                         <td className="p-4">
-                          <div className="font-bold text-slate-200 text-sm tracking-wide">{ticket.title}</div>
-                          <div className="text-slate-500 mt-1 max-w-xs truncate">{ticket.description}</div>
+                          <div className="font-bold text-[#224986] text-sm tracking-wide">{ticket.title}</div>
+                          <div className="text-[#224986]/70 mt-1 max-w-xs truncate">{ticket.description}</div>
                         </td>
 
-                        {/* 📍 DYNAMIC SLA STATUS COLUMN */}
-<td className="p-4">
-  <div className="flex flex-col items-start gap-1">
-    {/* 1. Show the historical target timestamp format option */}
-    <div className="font-medium text-slate-400 font-mono text-[10px]">
-      Target: {ticket.sla_deadline ? new Date(ticket.sla_deadline).toLocaleString() : 'No Deadline'}
-    </div>
-    
-    {/* 2. 🔥 THE LIVE DRIFT TICKER INJECTION */}
-    <div className="mt-1">
-      <CountdownTimer deadline={ticket.sla_deadline} status={ticket.status} />
-    </div>
-    
-    {/* 3. Keep the overall server-side calculated tag label below if desired, or let the timer handle the visuals */}
-    <span className={`px-1.5 py-0.5 mt-1 text-[8px] font-black uppercase tracking-widest rounded border ${
-      ticket.status === 'Resolved' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
-      ticket.calculated_sla_status === 'Breached' ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-slate-950 text-slate-500 border-slate-900'
-    }`}>
-      {ticket.status === 'Resolved' ? 'Archived' : ticket.calculated_sla_status}
-    </span>
-  </div>
-</td>
+
 
                         {/* 1. PRIORITY SELECT DROPDOWN */}
-<td className="p-4">
-  <select
-    value={ticket.priority}
-    disabled={ticket.status === 'Resolved'} // 🔒 LOCK FIELD IF RESOLVED
-    onChange={(e) => handleUpdateTicket(ticket.id, { priority: e.target.value })}
-    className={`p-1.5 rounded-lg border bg-slate-950 outline-none font-black text-[10px] uppercase tracking-wider transition-all ${
-      ticket.status === 'Resolved' 
-        ? 'border-slate-800 text-slate-600 cursor-not-allowed opacity-50' // Muted locked style
-        : ticket.priority === 'High' ? 'border-red-500/30 text-red-400 cursor-pointer' : 'border-blue-500/30 text-blue-400 cursor-pointer'
-    }`}
-  >
-    <option value="Low">Low</option>
-    <option value="Medium">Medium</option>
-    <option value="High">High</option>
-  </select>
-</td>
+                        <td className="p-4">
+                          <select
+                            value={ticket.priority}
+                            disabled={ticket.status === 'Resolved'} // 🔒 LOCK FIELD IF RESOLVED
+                            onChange={(e) => handleUpdateTicket(ticket.id, { priority: e.target.value })}
+                            className={`p-1.5 rounded-lg border bg-[#FBFBE2] outline-none font-black text-[10px] uppercase tracking-wider transition-all ${
+                              ticket.status === 'Resolved' 
+                                ? 'border-[#224986]/10 text-[#224986]/30 cursor-not-allowed opacity-50' // Muted locked style
+                                : 'border-[#224986]/30 text-[#224986] cursor-pointer hover:border-[#224986]/50'
+                            }`}
+                          >
+                            <option value="Low">Low</option>
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                          </select>
+                        </td>
 
-{/* 2. STATUS SELECT DROPDOWN */}
-<td className="p-4">
-  <select
-    value={ticket.status || 'Open'}
-    // Leave this open OR disable it based on whether you want admins to ever reopen tickets.
-    // If you want it completely locked down, add: disabled={ticket.status === 'Resolved'}
-    onChange={(e) => handleUpdateTicket(ticket.id, { status: e.target.value })}
-    className={`p-1.5 rounded-lg border bg-slate-950 outline-none font-bold cursor-pointer text-[11px] ${
-      ticket.status === 'Resolved' ? 'border-emerald-500/30 text-emerald-400' : 'border-slate-800 text-slate-300'
-    }`}
-  >
-    <option value="Open">Open</option>
-    <option value="On Hold">On Hold</option>
-    <option value="Resolved">Resolved</option>
-  </select>
-</td>
+                        {/* 2. STATUS SELECT DROPDOWN */}
+                        <td className="p-4">
+                          <select
+                            value={ticket.status || 'Open'}
+                            onChange={(e) => handleUpdateTicket(ticket.id, { status: e.target.value })}
+                            className={`p-1.5 rounded-lg border bg-[#FBFBE2] outline-none font-bold cursor-pointer text-[11px] ${
+                              ticket.status === 'Resolved' ? 'border-[#224986]/35 text-[#224986]/50' : 'border-[#224986]/20 text-[#224986]'
+                            }`}
+                          >
+                            <option value="Open">Open</option>
+                            <option value="On Hold">On Hold</option>
+                            <option value="Resolved">Resolved</option>
+                          </select>
+                        </td>
 
-{/* 3. ASSIGNED PERSONNEL SELECT DROPDOWN */}
-<td className="p-4">
-  <select
-    value={ticket.assigned_to || ''}
-    disabled={ticket.status === 'Resolved'} // 🔒 LOCK FIELD IF RESOLVED
-    onChange={(e) => handleUpdateTicket(ticket.id, { assigned_to: e.target.value || null })}
-    className={`p-2 rounded-xl bg-slate-950 border outline-none w-48 font-medium shadow-inner text-xs transition-all ${
-      ticket.status === 'Resolved'
-        ? 'border-slate-900 text-slate-600 cursor-not-allowed opacity-50' // Muted locked style
-        : 'border-slate-800 text-slate-300 cursor-pointer'
-    }`}
-  >
-    <option value="">-- Unassigned --</option>
-    {staffMembers && staffMembers.map((staff) => (
-      <option key={staff.email} value={staff.email}>
-        {staff.email}
-      </option>
-    ))}
-  </select>
-</td>
+                        {/* 3. ASSIGNED PERSONNEL SELECT DROPDOWN */}
+                        <td className="p-4">
+                          <select
+                            value={ticket.assigned_to || ''}
+                            disabled={ticket.status === 'Resolved'} // 🔒 LOCK FIELD IF RESOLVED
+                            onChange={(e) => handleUpdateTicket(ticket.id, { assigned_to: e.target.value || null })}
+                            className={`p-2 rounded-xl bg-[#FBFBE2] border outline-none w-48 font-medium shadow-inner text-xs transition-all ${
+                              ticket.status === 'Resolved'
+                                ? 'border-[#224986]/10 text-[#224986]/30 cursor-not-allowed opacity-50' // Muted locked style
+                                : 'border-[#224986]/25 text-[#224986] cursor-pointer hover:border-[#224986]/45'
+                            }`}
+                          >
+                            <option value="">-- Unassigned --</option>
+                            {staffMembers && staffMembers.map((staff) => (
+                              <option key={staff.email} value={staff.email}>
+                                {staff.email}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
                       </tr>
                     ))}
                     {tickets.length === 0 && (
                       <tr>
-                        <td colSpan="6" className="p-8 text-center text-slate-600 font-medium tracking-wide uppercase text-[10px]">
+                        <td colSpan="6" className="p-8 text-center text-[#224986]/50 font-medium tracking-wide uppercase text-[10px] border-t border-[#224986]/10">
                           No records matched your operational matrix queries.
                         </td>
                       </tr>

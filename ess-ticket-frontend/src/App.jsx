@@ -63,42 +63,42 @@ export default function App() {
   // ==========================================================================
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-zinc-950 flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
         {/* Ambient branding light flares in background */}
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#224986]/5 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#224986]/5 rounded-full blur-3xl pointer-events-none"></div>
 
-        <div className="w-full max-w-md bg-slate-900/60 border border-slate-800/80 rounded-2xl p-8 backdrop-blur-xl shadow-2xl relative z-10">
+        <div className="w-full max-w-md bg-[#FBFBE2]/70 border border-[#224986]/20 rounded-2xl p-8 backdrop-blur-xl shadow-2xl relative z-10">
           
           {/* Header Branding Panel */}
           <div className="text-center mb-6">
             <img 
-              src="/image.png" 
+              src="/Picture1.png" 
               alt="Ethiopian Statistical Service Logo" 
-              className="w-full h-auto rounded-xl border border-slate-800/80 shadow-lg mb-4" 
+              className="w-full h-auto rounded-xl border border-[#224986]/20 shadow-lg mb-4" 
             />
-            <h2 className="text-sm font-bold tracking-widest text-slate-300 uppercase">
+            <h2 className="text-sm font-bold tracking-widest text-[#224986] uppercase">
               {isSignUp ? 'System Registration' : 'IT Service Desk Portal'}
             </h2>
-            <p className="text-[9px] font-bold tracking-[0.15em] text-blue-500 uppercase mt-1">
+            <p className="text-[9px] font-bold tracking-[0.15em] text-[#224986]/80 uppercase mt-1">
               {isSignUp ? 'Internal Employee Onboarding' : 'Secure Authorization'}
             </p>
           </div>
 
           {errorMsg && (
-            <div className="p-3 rounded-xl mb-5 text-xs font-medium bg-red-500/10 border border-red-500/20 text-red-400 backdrop-blur-md">
+            <div className="p-3 rounded-xl mb-5 text-xs font-semibold bg-[#224986]/10 border border-[#224986]/20 text-[#224986] backdrop-blur-md">
               ⚠️ {errorMsg}
             </div>
           )}
           {successMsg && (
-            <div className="p-3 rounded-xl mb-5 text-xs font-medium bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 backdrop-blur-md">
+            <div className="p-3 rounded-xl mb-5 text-xs font-semibold bg-[#224986]/10 border border-[#224986]/20 text-[#224986] backdrop-blur-md">
               {successMsg}
             </div>
           )}
 
           <form onSubmit={handleAuthSubmit} className="space-y-5">
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+              <label className="block text-[11px] font-bold text-[#224986]/80 uppercase tracking-widest mb-2">
                 Email Address
               </label>
               <input
@@ -107,12 +107,12 @@ export default function App() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@statsethiopia.gov.et"
-                className="w-full bg-slate-950/80 border border-slate-800 focus:border-blue-500/80 focus:ring-1 focus:ring-blue-500/30 rounded-xl p-3 text-slate-200 placeholder-slate-700 outline-none transition-all text-sm shadow-inner"
+                className="w-full bg-[#FBFBE2]/90 border border-[#224986]/30 focus:border-[#224986] focus:ring-1 focus:ring-[#224986]/30 rounded-xl p-3 text-[#224986] placeholder-[#224986]/40 outline-none transition-all text-sm shadow-inner"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+              <label className="block text-[11px] font-bold text-[#224986]/80 uppercase tracking-widest mb-2">
                 Password
               </label>
               <input
@@ -121,35 +121,35 @@ export default function App() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-slate-950/80 border border-slate-800 focus:border-blue-500/80 focus:ring-1 focus:ring-blue-500/30 rounded-xl p-3 text-slate-200 placeholder-slate-700 outline-none transition-all text-sm shadow-inner"
+                className="w-full bg-[#FBFBE2]/90 border border-[#224986]/30 focus:border-[#224986] focus:ring-1 focus:ring-[#224986]/30 rounded-xl p-3 text-[#224986] placeholder-[#224986]/40 outline-none transition-all text-sm shadow-inner"
               />
             </div>
 
             <button 
               type="submit" 
-              className="w-full py-3.5 mt-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs uppercase tracking-widest shadow-lg shadow-blue-950/50 hover:shadow-blue-900/20 active:scale-[0.99] transition-all"
+              className="w-full py-3.5 mt-2 bg-[#224986] hover:bg-[#224986]/90 text-[#FBFBE2] font-bold rounded-xl text-xs uppercase tracking-widest shadow-lg hover:shadow-xl active:scale-[0.99] transition-all cursor-pointer"
             >
               {isSignUp ? 'Register Account' : 'Login'}
             </button>
           </form>
 
           {/* Toggle Gateway Link Panel */}
-          <div className="mt-8 pt-4 border-t border-slate-800/60 text-center">
+          <div className="mt-8 pt-4 border-t border-[#224986]/10 text-center">
             {isSignUp ? (
               <button
                 type="button"
                 onClick={() => { setIsSignUp(false); setErrorMsg(''); setSuccessMsg(''); }}
-                className="text-xs text-slate-500 hover:text-blue-400 transition-colors tracking-wide"
+                className="text-xs text-[#224986]/60 hover:text-[#224986] transition-colors tracking-wide cursor-pointer"
               >
-                Already have an account? <span className="text-blue-500 font-semibold underline underline-offset-4 ml-1">Sign In</span>
+                Already have an account? <span className="text-[#224986] font-semibold underline underline-offset-4 ml-1">Sign In</span>
               </button>
             ) : (
               <button
                 type="button"
                 onClick={() => { setIsSignUp(true); setErrorMsg(''); setSuccessMsg(''); }}
-                className="text-xs text-slate-500 hover:text-blue-400 transition-colors tracking-wide"
+                className="text-xs text-[#224986]/60 hover:text-[#224986] transition-colors tracking-wide cursor-pointer"
               >
-                Don't have an account? <span className="text-blue-500 font-semibold underline underline-offset-4 ml-1">Register Here</span>
+                Don't have an account? <span className="text-[#224986] font-semibold underline underline-offset-4 ml-1">Register Here</span>
               </button>
             )}
           </div>

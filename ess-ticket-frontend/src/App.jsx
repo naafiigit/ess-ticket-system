@@ -120,14 +120,14 @@ export default function App() {
           <form onSubmit={handleAuthSubmit} className="space-y-5">
             <div>
               <label className="block text-[11px] font-bold text-[#224986]/80 uppercase tracking-widest mb-2">
-                Email Address
+                User ID
               </label>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@statsethiopia.gov.et"
+                placeholder="User ID (e.g. name@statsethiopia.gov.et)"
                 className="w-full bg-[#FBFBE2]/90 border border-[#224986]/30 focus:border-[#224986] focus:ring-1 focus:ring-[#224986]/30 rounded-xl p-3 text-[#224986] placeholder-[#224986]/40 outline-none transition-all text-sm shadow-inner"
               />
             </div>

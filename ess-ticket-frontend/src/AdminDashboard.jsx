@@ -412,14 +412,14 @@ export default function AdminDashboard({ userEmail, onLogout }) {
                   <form onSubmit={handleCreateStaff} className="space-y-3">
                     <div>
                       <label className="block text-[9px] font-bold text-[#224986]/70 uppercase tracking-wider mb-1">
-                        Email Address
+                        User ID
                       </label>
                       <input
                         type="email"
                         required
                         value={newStaffEmail}
                         onChange={(e) => setNewStaffEmail(e.target.value)}
-                        placeholder="specialist@statsethiopia.gov.et"
+                        placeholder="User ID (e.g. specialist@statsethiopia.gov.et)"
                         className="w-full bg-[#FBFBE2]/90 border border-[#224986]/30 focus:border-[#224986]/50 rounded-lg p-2 text-xs text-[#224986] placeholder-[#224986]/40 outline-none transition-all shadow-inner"
                       />
                     </div>

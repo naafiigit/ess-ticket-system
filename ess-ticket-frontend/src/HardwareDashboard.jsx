@@ -69,7 +69,7 @@ function SLACardCountdown({ deadline, status }) {
   );
 }
 
-export default function StaffDashboard({ userEmail, onLogout }) {
+export default function HardwareDashboard({ userEmail, onLogout }) {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -82,7 +82,7 @@ export default function StaffDashboard({ userEmail, onLogout }) {
   const fetchAssignedTickets = async () => {
     try {
       const response = await fetch(`http://localhost:5000/api/staff/tickets?email=${userEmail}`);
-      if (!response.ok) throw new Error('Failed to retrieve personal workgroup queues.');
+      if (!response.ok) throw new Error('Failed to retrieve hardware workgroup queues.');
       const data = await response.json();
       setTickets(data);
     } catch (err) {
@@ -167,7 +167,7 @@ export default function StaffDashboard({ userEmail, onLogout }) {
             <img src="/Picture1.png" alt="ESS Logo" className="w-10 h-10 rounded-2xl object-contain bg-white shadow-md border border-[#224986]/10 p-0.5" />
             <div>
               <h1 className="text-xl font-black tracking-wider text-[#224986] flex items-center gap-2">
-                ESS SOFTWARE FAULT DESK
+                ESS HARDWARE FAULT DESK
               </h1>
               <p className="text-[10px] font-bold tracking-[0.12em] text-[#224986]/70 uppercase mt-0.5">
                 ACTIVE OPERATIONAL MATRIX • <span className="font-mono text-[#224986]/90 lowercase font-normal">{userEmail}</span>

@@ -12,13 +12,21 @@ if (process.env.NODE_ENV === 'production') {
   console.log = () => {};
 }
 
+const fs = require('fs');
 const app = express();
+
+// Ensure uploads folder exists
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+}
 
 // Secure HTTP headers
 app.use(helmet());
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use('/uploads', express.static(uploadsDir)); 
 
 // --- RATE LIMITERS ---
 
@@ -89,12 +97,31 @@ const initDb = async () => {
         name VARCHAR(255),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      CREATE TABLE IF NOT EXISTS notifications (
+        id SERIAL PRIMARY KEY,
+        user_email VARCHAR(255) NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        message TEXT NOT NULL,
+        type VARCHAR(50) DEFAULT 'warning',
+        is_read BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
     `);
 
     // 2. AUTOMATIC MIGRATION: Node will safely add these columns if they aren't there!
     await pool.query(`
       ALTER TABLE tickets ADD COLUMN IF NOT EXISTS sla_deadline TIMESTAMP;
       ALTER TABLE tickets ADD COLUMN IF NOT EXISTS custom_sla_status VARCHAR(50) DEFAULT 'In Progress';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS category VARCHAR(100);
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(500);
+    `);
+
+    // 3. MIGRATION: Rename old category values to match the new naming convention
+    await pool.query(`
+      UPDATE tickets SET category = 'IT Support (Software Fault)' WHERE category = 'IT Support';
+      UPDATE tickets SET category = 'Hardware Fault' WHERE category = 'Hardware';
+      UPDATE users SET category = 'IT Support (Software Fault)' WHERE role = 'it_staff' AND category IS NULL;
     `);
 
     // 3. Seed admin user from environment variables if not exists
@@ -119,6 +146,9 @@ const initDb = async () => {
       console.log(`👤 Admin user verified.`);
     }
 
+    // 4. MIGRATION: Reset email_alert_sent for non-resolved tickets so assigned staff receive breach alerts
+    await pool.query(`UPDATE tickets SET email_alert_sent = false WHERE status != 'Resolved';`);
+
     console.log('✅ Database initialized and SLA columns verified successfully.');
   } catch (err) {
     console.error('❌ Database initialization failed:', err.message);
@@ -131,11 +161,30 @@ initDb();
 
 // 1. SIGN UP ROUTE
 app.post('/api/auth/signup', async (req, res) => {
-  const { email, password, role } = req.body;
+  const { email, password, role, category, avatar_url } = req.body;
   try {
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanEmail = email ? email.trim().toLowerCase() : '';
     const assignedRole = role || 'customer';
     const defaultName = cleanEmail.split('@')[0];
+    const assignedCategory = category || null;
+    const assignedAvatarUrl = avatar_url || '';
+
+    // Enforce Strong Password Policy
+    if (!password || password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
+    }
+    if (!/[A-Z]/.test(password)) {
+      return res.status(400).json({ error: 'Password must contain at least one uppercase letter (A-Z).' });
+    }
+    if (!/[a-z]/.test(password)) {
+      return res.status(400).json({ error: 'Password must contain at least one lowercase letter (a-z).' });
+    }
+    if (!/[0-9]/.test(password)) {
+      return res.status(400).json({ error: 'Password must contain at least one number (0-9).' });
+    }
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+      return res.status(400).json({ error: 'Password must contain at least one special character (!@#$%^&* etc.).' });
+    }
 
     // Generate unique random 8-digit user ID
     let userId;
@@ -149,10 +198,10 @@ app.post('/api/auth/signup', async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO users (id, email, password, role, name) 
-       VALUES ($1, $2, $3, $4, $5) 
-       RETURNING id, email, role, name`,
-      [userId, cleanEmail, password, assignedRole, defaultName]
+      `INSERT INTO users (id, email, password, role, name, category, avatar_url) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7) 
+       RETURNING id, email, role, name, category, avatar_url`,
+      [userId, cleanEmail, password, assignedRole, defaultName, assignedCategory, assignedAvatarUrl]
     );
     
     console.log(`👤 New user registered successfully: ${cleanEmail} as ${assignedRole} (ID: ${userId})`);
@@ -190,11 +239,51 @@ app.post('/api/auth/login', async (req, res) => {
 
     res.json({
       message: 'Authentication successful!',
-      user: { email: user.email, role: user.role }
+      user: { email: user.email, role: user.role, category: user.category, avatar_url: user.avatar_url }
     });
   } catch (err) {
     console.error('Login Error:', err.message);
     res.status(500).json({ error: 'Database login processing failure.' });
+  }
+});
+
+// 2.5 UPDATE PROFILE ROUTE
+app.put('/api/users/profile', async (req, res) => {
+  const { email, avatar_url } = req.body;
+  try {
+    const cleanEmail = email.trim().toLowerCase();
+    let finalAvatarUrl = avatar_url || '';
+
+    if (avatar_url && avatar_url.startsWith('data:image/')) {
+      const mimeType = avatar_url.substring(avatar_url.indexOf(':') + 1, avatar_url.indexOf(';'));
+      const extension = mimeType.split('/')[1] || 'png';
+      
+      const base64Data = avatar_url.split(';base64,').pop();
+      
+      const fileName = `avatar_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}.${extension}`;
+      const filePath = path.join(uploadsDir, fileName);
+      
+      fs.writeFileSync(filePath, base64Data, { encoding: 'base64' });
+      finalAvatarUrl = `http://localhost:5000/uploads/${fileName}?t=${Date.now()}`;
+    }
+
+    const result = await pool.query(
+      `UPDATE users 
+       SET avatar_url = $1 
+       WHERE email = $2 
+       RETURNING id, email, role, name, category, avatar_url`,
+      [finalAvatarUrl, cleanEmail]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    console.log(`👤 Profile updated: ${cleanEmail} avatar saved.`);
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Profile Update Error:', err.message);
+    res.status(500).json({ error: 'Failed to update profile settings.' });
   }
 });
 
@@ -233,7 +322,16 @@ app.post('/api/tickets', async (req, res) => {
       }
     }
 
-    // Insert the ticket
+    const finalPriority = priority || 'Medium';
+
+    // Calculate SLA deadline hours
+    let hours = 24;
+    if (finalPriority === 'High') hours = 6;
+    else if (finalPriority === 'Medium') hours = 12;
+
+    const slaDeadline = new Date(Date.now() + hours * 60 * 60 * 1000);
+
+    // Insert the ticket with SLA deadline calculation
     const result = await pool.query(
       `INSERT INTO tickets (
         id,
@@ -243,10 +341,11 @@ app.post('/api/tickets', async (req, res) => {
         category, 
         status, 
         created_by, 
-        created_at
-      ) VALUES ($1, $2, $3, $4, $5, 'Open', $6, NOW()) 
+        created_at,
+        sla_deadline
+      ) VALUES ($1, $2, $3, $4, $5, 'Open', $6, NOW(), $7) 
       RETURNING *`,
-      [ticketId, title, description, priority || 'Medium', category || 'IT Support', created_by]
+      [ticketId, title, description, finalPriority, category || 'IT Support (Software Fault)', created_by, slaDeadline]
     );
     
     res.status(201).json(result.rows[0]);
@@ -266,17 +365,22 @@ app.get('/api/admin/tickets', async (req, res) => {
         COUNT(*)::int as total,
         COUNT(CASE WHEN status = 'Open' OR status IS NULL THEN 1 END)::int as open,
         COUNT(CASE WHEN status = 'On Hold' THEN 1 END)::int as on_hold,
-        COUNT(CASE WHEN status = 'Resolved' THEN 1 END)::int as resolved
+        COUNT(CASE WHEN status = 'Resolved' THEN 1 END)::int as resolved,
+        COUNT(CASE WHEN status != 'Resolved' AND NOW() > sla_deadline THEN 1 END)::int as breached,
+        COUNT(CASE WHEN (status = 'Open' OR status IS NULL) AND (sla_deadline IS NULL OR NOW() <= sla_deadline) THEN 1 END)::int as open_on_time,
+        COUNT(CASE WHEN status = 'On Hold' AND (sla_deadline IS NULL OR NOW() <= sla_deadline) THEN 1 END)::int as on_hold_on_time
       FROM tickets
     `);
-    const stats = statsResult.rows[0] || { total: 0, open: 0, on_hold: 0, resolved: 0 };
+    const stats = statsResult.rows[0] || { total: 0, open: 0, on_hold: 0, resolved: 0, breached: 0, open_on_time: 0, on_hold_on_time: 0 };
 
     const formattedStats = {
       total: stats.total,
       open: stats.open,
       onHold: stats.on_hold,
       resolved: stats.resolved,
-      breached: 0
+      breached: stats.breached,
+      openOnTime: stats.open_on_time,
+      onHoldOnTime: stats.on_hold_on_time
     };
 
     // 2. Build parametrized database query dynamically for filtering tickets
@@ -321,14 +425,14 @@ app.get('/api/admin/tickets', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch admin tickets.' });
   }
 });
-// 6. ADMIN/STAFF UPDATE ROUTE: Patches updates, assigns personnel
+// 6. ADMIN/STAFF UPDATE ROUTE: Patches updates, assigns personnel, title, description
 app.put('/api/admin/tickets/:id', async (req, res) => {
   const { id } = req.params;
-  const { priority, status, assigned_to } = req.body;
+  const { title, description, priority, status, assigned_to, category } = req.body;
 
   try {
     const currentTicketCheck = await pool.query(
-      'SELECT status, priority, assigned_to FROM tickets WHERE id = $1', 
+      'SELECT title, description, status, priority, assigned_to, category, created_at, email_alert_sent FROM tickets WHERE id = $1', 
       [id]
     );
     
@@ -336,24 +440,134 @@ app.put('/api/admin/tickets/:id', async (req, res) => {
 
     const currentTicket = currentTicketCheck.rows[0];
 
+    const finalTitle = title !== undefined ? title : currentTicket.title;
+    const finalDescription = description !== undefined ? description : currentTicket.description;
     const finalPriority = priority !== undefined ? priority : currentTicket.priority;
     const finalStatus = status !== undefined ? status : currentTicket.status;
     const finalAssignedTo = assigned_to !== undefined ? assigned_to : currentTicket.assigned_to;
+    const finalCategory = category !== undefined ? category : currentTicket.category;
+
+    // Calculate updated SLA deadline in JavaScript
+    const createdAt = new Date(currentTicket.created_at);
+    let hours = 24;
+    if (finalPriority === 'High') hours = 6;
+    else if (finalPriority === 'Medium') hours = 12;
+
+    const newSlaDeadline = new Date(createdAt.getTime() + hours * 60 * 60 * 1000);
+
+    // Reset email_alert_sent if ticket is assigned/reassigned to a new staff member or priority changes
+    let finalEmailAlertSent = currentTicket.email_alert_sent;
+    if (finalAssignedTo !== currentTicket.assigned_to) {
+      finalEmailAlertSent = false;
+    }
+    if (finalStatus === 'Resolved') {
+      finalEmailAlertSent = currentTicket.email_alert_sent;
+    }
 
     const updateResult = await pool.query(
       `UPDATE tickets 
-       SET priority = $1,
-           status = $2,
-           assigned_to = $3
-       WHERE id = $4
+       SET title = $1,
+           description = $2,
+           priority = $3,
+           status = $4,
+           assigned_to = $5,
+           sla_deadline = $6,
+           email_alert_sent = $7,
+           category = $8
+       WHERE id = $9
        RETURNING *`, 
-      [finalPriority, finalStatus, finalAssignedTo, id]
+      [finalTitle, finalDescription, finalPriority, finalStatus, finalAssignedTo, newSlaDeadline, finalEmailAlertSent, finalCategory, id]
     );
 
     res.json(updateResult.rows[0]);
   } catch (err) {
     console.error('Update failed:', err.message);
     res.status(500).json({ error: 'Update failed' });
+  }
+});
+
+// 6.5 ADMIN ROUTE: Delete ticket with in-app dashboard pop-up notification dispatch
+app.delete('/api/admin/tickets/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    // 1. Fetch target ticket details before deleting
+    const ticketCheck = await pool.query('SELECT id, title, created_by, assigned_to FROM tickets WHERE id = $1', [id]);
+    if (ticketCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Ticket not found.' });
+    }
+    const ticket = ticketCheck.rows[0];
+
+    // 2. Perform deletion
+    await pool.query('DELETE FROM tickets WHERE id = $1', [id]);
+    console.log(`🗑️ Admin deleted ticket #${id}`);
+
+    // 3. Dispatch pop-up notification message to ticket producer (created_by)
+    if (ticket.created_by && ticket.created_by.trim()) {
+      const producerEmail = ticket.created_by.trim().toLowerCase();
+      await pool.query(
+        `INSERT INTO notifications (user_email, title, message, type)
+         VALUES ($1, $2, $3, 'warning')`,
+        [
+          producerEmail,
+          '🗑️ Ticket Deleted',
+          `Your ticket #${ticket.id} ("${ticket.title}") was deleted by an administrator.`
+        ]
+      );
+      console.log(`🔔 Pop-up notification queued for producer: ${producerEmail}`);
+    }
+
+    // 4. Dispatch pop-up notification message to assigned specialist (assigned_to) if different from producer
+    if (ticket.assigned_to && ticket.assigned_to.trim()) {
+      const assignedEmail = ticket.assigned_to.trim().toLowerCase();
+      const producerEmail = ticket.created_by ? ticket.created_by.trim().toLowerCase() : '';
+      if (assignedEmail !== producerEmail) {
+        await pool.query(
+          `INSERT INTO notifications (user_email, title, message, type)
+           VALUES ($1, $2, $3, 'warning')`,
+          [
+            assignedEmail,
+            '🗑️ Ticket Deleted',
+            `Ticket #${ticket.id} ("${ticket.title}") assigned to you was deleted by an administrator.`
+          ]
+        );
+        console.log(`🔔 Pop-up notification queued for assigned staff: ${assignedEmail}`);
+      }
+    }
+
+    res.json({ message: 'Ticket deleted successfully', id });
+  } catch (err) {
+    console.error('Delete Ticket Error:', err.message);
+    res.status(500).json({ error: 'Failed to delete ticket.' });
+  }
+});
+
+// 6.6 NOTIFICATION ROUTES: Fetch unread notifications for dashboard popups
+app.get('/api/notifications', async (req, res) => {
+  const { email } = req.query;
+  if (!email) {
+    return res.status(400).json({ error: 'Email parameter required.' });
+  }
+  try {
+    const cleanEmail = email.trim().toLowerCase();
+    const result = await pool.query(
+      `SELECT * FROM notifications WHERE LOWER(user_email) = $1 AND is_read = false ORDER BY created_at DESC`,
+      [cleanEmail]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Fetch Notifications Error:', err.message);
+    res.status(500).json({ error: 'Failed to retrieve notifications.' });
+  }
+});
+
+app.put('/api/notifications/:id/read', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query('UPDATE notifications SET is_read = true WHERE id = $1', [id]);
+    res.json({ message: 'Notification marked as read.' });
+  } catch (err) {
+    console.error('Mark Notification Read Error:', err.message);
+    res.status(500).json({ error: 'Failed to mark notification as read.' });
   }
 });
 // 7. STAFF ROUTE: Fetch only tickets assigned to a specific IT specialist
@@ -418,7 +632,7 @@ app.put('/api/staff/tickets/:id/status', async (req, res) => {
 app.get('/api/admin/staff-list', async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT email FROM users WHERE role = 'it_staff' ORDER BY email ASC"
+      "SELECT email, category FROM users WHERE role = 'it_staff' ORDER BY email ASC"
     );
     res.json(result.rows);
   } catch (err) {
@@ -440,6 +654,7 @@ const transporter = nodemailer.createTransport({
 });
 
 // 2. The core processing function wrapped in structural safeguards
+// 2. The core processing function wrapped in structural safeguards
 async function checkAndEmailSLABreaches() {
   try {
     // Fetch active tickets that have breached their deadline, but haven't been resolved or alerted yet
@@ -448,7 +663,6 @@ async function checkAndEmailSLABreaches() {
       FROM tickets 
       WHERE status != 'Resolved' 
         AND NOW() > sla_deadline 
-        AND assigned_to IS NOT NULL 
         AND (email_alert_sent IS NULL OR email_alert_sent = false)
     `);
 
@@ -457,22 +671,31 @@ async function checkAndEmailSLABreaches() {
     console.log(`[SLA Worker] Found ${breachedTickets.rows.length} unnotified breaches. Dispatching notifications...`);
 
     for (const ticket of breachedTickets.rows) {
+      // Only send SLA breach email to the assigned IT specialist
+      if (!ticket.assigned_to || !ticket.assigned_to.trim()) {
+        console.log(`[SLA Worker] Ticket #${ticket.id} is unassigned. Skipping breach notification email.`);
+        continue;
+      }
+
+      const recipient = ticket.assigned_to.trim().toLowerCase();
+
       const mailOptions = {
-        from: '"ESS Service Desk Alert" <your-system-email@gmail.com>',
-        to: ticket.assigned_to, // Sends directly to the assigned staff member's email
+        from: `"ESS Service Desk Alert" <${process.env.EMAIL_USER || 'nafyadtilahun4@gmail.com'}>`,
+        to: recipient,
         subject: `⚠️ SLA BREACH ALERT: Ticket #${ticket.id}`,
         html: `
           <div style="font-family: sans-serif; padding: 20px; background-color: #fafafa; border: 1px solid #eee; border-radius: 12px; max-width: 550px;">
             <h2 style="color: #ef4444; margin-top: 0;">Operational SLA Breach Detected</h2>
-            <p>An incident assigned to your workstation queue has breached its allocated service window threshold.</p>
+            <p>An incident has breached its allocated service window threshold.</p>
             <hr style="border: 0; border-top: 1px solid #ddd; margin: 20px 0;" />
             <table style="font-size: 14px; width: 100%;">
               <tr><td style="font-weight: bold; width: 120px; color: #666;">Ticket ID:</td><td>#${ticket.id}</td></tr>
               <tr><td style="font-weight: bold; color: #666;">Issue Title:</td><td><strong>${ticket.title}</strong></td></tr>
+              <tr><td style="font-weight: bold; color: #666;">Assigned To:</td><td>${ticket.assigned_to || '<span style="color: #ef4444; font-weight: bold;">UNASSIGNED</span>'}</td></tr>
               <tr><td style="font-weight: bold; color: #666;">Target Deadline:</td><td style="color: #ef4444;">${new Date(ticket.sla_deadline).toLocaleString()}</td></tr>
             </table>
             <hr style="border: 0; border-top: 1px solid #ddd; margin: 20px 0;" />
-            <p style="font-size: 12px; color: #777; margin-bottom: 0;">This is an automated operational system notice for the Ethiopian Statistical Service desk console. Please log into your panel dashboard to resolve this item immediately.</p>
+            <p style="font-size: 12px; color: #777; margin-bottom: 0;">This is an automated operational system notice for the Ethiopian Statistical Service desk console. Please log into the panel dashboard to resolve this item immediately.</p>
           </div>
         `
       };
@@ -483,7 +706,7 @@ async function checkAndEmailSLABreaches() {
         
         // Mark this ticket as alerted in the database so it never emails them a duplicate alert again
         await pool.query('UPDATE tickets SET email_alert_sent = true WHERE id = $1', [ticket.id]);
-        console.log(`[SLA Worker] Breach email dispatched successfully to ${ticket.assigned_to} for ticket #${ticket.id}`);
+        console.log(`[SLA Worker] Breach email dispatched successfully to ${recipient} for ticket #${ticket.id}`);
       } catch (mailError) {
         // 🔒 SAFETY VALVE: Catch email errors here. If authentication or network fails, 
         // it prints the error to the logs but keeps server.js alive!
@@ -495,8 +718,10 @@ async function checkAndEmailSLABreaches() {
   }
 }
 
-// 3. Run the worker automatically every 60 seconds background thread loop (Disabled - SLA not used)
-// setInterval(checkAndEmailSLABreaches, 60000);
+// 3. Run the worker automatically every 60 seconds background thread loop
+setInterval(checkAndEmailSLABreaches, 60000);
+// Run once immediately on startup after a brief delay
+setTimeout(checkAndEmailSLABreaches, 5000);
 
 const PORT = 5000;
 app.listen(PORT, () => {

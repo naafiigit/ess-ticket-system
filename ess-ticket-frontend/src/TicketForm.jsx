@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
+
 export default function TicketForm({ userEmail, onLogout }) {
   const [tickets, setTickets] = useState([]);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -7,7 +8,7 @@ export default function TicketForm({ userEmail, onLogout }) {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    category: 'IT Support',
+    category: 'IT Support (Software Fault)',
     priority: 'Medium',
   });
 
@@ -49,7 +50,7 @@ export default function TicketForm({ userEmail, onLogout }) {
 
       if (response.ok) {
         setMessage({ type: 'success', text: '🎉 Ticket submitted successfully!' });
-        setFormData({ title: '', description: '', category: 'IT Support', priority: 'Medium' });
+        setFormData({ title: '', description: '', category: 'IT Support (Software Fault)', priority: 'Medium' });
         fetchUserTickets(); // Refresh the list view immediately
       } else {
         setMessage({ type: 'error', text: `System fault: ${data.error}` });
@@ -67,10 +68,13 @@ export default function TicketForm({ userEmail, onLogout }) {
       <div className="w-full md:w-1/2 p-8 flex flex-col justify-center border-r border-[#224986]/10 bg-[#FBFBE2]/60 backdrop-blur-md">
         <div className="max-w-md w-full mx-auto">
           <div className="flex justify-between items-center mb-6">
-            <span className="text-xs font-mono text-[#224986]/80 bg-[#FBFBE2]/90 border border-[#224986]/20 rounded-md px-2 py-1">
-              Active User: {userEmail}
-            </span>
-            <button onClick={onLogout} className="text-xs font-semibold text-[#224986]/70 hover:text-[#224986] transition-colors cursor-pointer">
+            <div className="flex items-center gap-3">
+              <img src="/Picture1.png" alt="ESS Logo" className="w-10 h-10 rounded-2xl object-contain bg-white shadow-md border border-[#224986]/10 p-0.5" />
+              <span className="text-xs font-mono text-[#224986]/85 font-black">
+                {userEmail}
+              </span>
+            </div>
+            <button onClick={onLogout} className="text-xs font-bold uppercase tracking-wider text-[#224986]/70 hover:text-[#224986] transition-colors cursor-pointer">
               Logout
             </button>
           </div>
@@ -92,9 +96,8 @@ export default function TicketForm({ userEmail, onLogout }) {
             <div>
               <label className="block text-xs font-bold text-[#224986]/80 uppercase tracking-wider mb-2">Category</label>
               <select value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} className="w-full bg-[#FBFBE2]/90 border border-[#224986]/30 rounded-xl p-3 text-sm outline-none text-[#224986] focus:border-[#224986] transition-all cursor-pointer shadow-inner">
-                <option value="IT Support">IT Support</option>
-                <option value="Access Management">Access Management</option>
-                <option value="Hardware">Hardware Fault</option>
+                <option value="IT Support (Software Fault)">IT Support (Software Fault)</option>
+                <option value="Hardware Fault">Hardware Fault</option>
               </select>
             </div>
             <div>
